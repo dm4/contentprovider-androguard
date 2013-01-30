@@ -125,7 +125,12 @@ if __name__ == "__main__" :
                     break;
             if found_ins == None:
                 print "!"
-                query_block = query_block.get_prev()[0]
+                previous_blocks = query_block.get_prev()
+                if len(previous_blocks) > 0:
+                    query_block = query_block.get_prev()[0][2]
+                else:
+                    print "No prev block"
+                    break
 
         print "\tFound URI {}".format(found_ins)
         print ""
