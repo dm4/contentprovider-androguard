@@ -43,6 +43,7 @@ def get_variable_list(method):
 
 
 if __name__ == "__main__" :
+    # load apk and analyze
     a, d, dx = read_apk("apk/tunein.player.apk")
 
     # search ContentResolver.query()
@@ -69,19 +70,19 @@ if __name__ == "__main__" :
         if re_skip_class.match(src_class_name):
             continue
 
-        # get analyized method
+        # get analyzed method
         method = d.get_method_descriptor(src_class_name, src_method_name, src_descriptor)
-        analyized_method = dx.get_method(method)
+        analyzed_method = dx.get_method(method)
         print get_variable_list(method)
 
         # decompile to get source code
-#        decompiled_method = decompile.DvMethod(analyized_method)
+#        decompiled_method = decompile.DvMethod(analyzed_method)
 #        decompiled_method.process()
 #        print decompiled_method.get_source()
 
         # find query instruction position
         idx = 0
-        blocks = analyized_method.get_basic_blocks().get()
+        blocks = analyzed_method.get_basic_blocks().get()
         for block in blocks:
             instructions = block.get_instructions()
             for index in range(0, len(instructions)):
