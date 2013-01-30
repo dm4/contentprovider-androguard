@@ -9,6 +9,7 @@ import os, re
 apk_session_dir = "session/"
 
 def read_apk(apk_name):
+    """ Read apk file and return a, d, dx """
     apk_basename = os.path.basename(apk_name)
     apk_session_name = apk_session_dir + apk_basename
 
@@ -24,6 +25,24 @@ def read_apk(apk_name):
         a, d, dx = androlyze.load_session(apk_session_name)
 
     return a, d, dx
+
+def get_variable_list(method):
+    """ Return local variable list and parameter list """
+    method.each_params_by_register(method.get_code().get_registers_size(), method.proto)
+
+    # get number of local variables
+    nb  = method.get_code().get_registers_size()
+
+    # parameters pass in
+    ret = method.proto.split(')')
+    params = ret[0][1:].split()
+
+    # NOT SAVE CLASS OF PARAMS YET
+    if params:
+        return [ "v{:d}".format(i) for i in range(0, nb - len(params)) ], [ "v{:d}".format(i) for i in range(nb - len(params), nb) ]
+    else :
+        return [ "v{:d}".format(i) for i in range(0, nb) ], []
+
 
 if __name__ == "__main__" :
     a, d, dx = read_apk("apk/tunein.player.apk")
@@ -55,6 +74,7 @@ if __name__ == "__main__" :
         # get analyized method
         method = d.get_method_descriptor(src_class_name, src_method_name, src_descriptor)
         analyized_method = dx.get_method(method)
+        print get_variable_list(method)
 
         # decompile to get source code
 #        decompiled_method = decompile.DvMethod(analyized_method)
