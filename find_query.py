@@ -28,8 +28,6 @@ def read_apk(apk_name):
 
 def get_variable_list(method):
     """ Return local variable list and parameter list """
-    method.each_params_by_register(method.get_code().get_registers_size(), method.proto)
-
     # get number of local variables
     nb  = method.get_code().get_registers_size()
 
