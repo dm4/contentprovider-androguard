@@ -51,15 +51,31 @@ def get_instruction_variable(instruction):
     else:
         return [ var for var in instruction.get_output().split(', ') if var[0] == 'v' ]
 
+def _print_backtrace_result(result, depth):
+    indent = "\t" * depth
+    ins = result["ins"]
+    if type(ins) == type('str'):
+        print indent, ins
+    else:
+        print indent, ins.get_name(), ins.get_output()
+    for var in result.keys():
+        if var == 'ins':
+            continue
+        print indent, var
+        _print_backtrace_result(result[var], depth + 1)
+
+def print_backtrace_result(result):
+    _print_backtrace_result(result, 0);
+
 def backtrace_variable(method, ins_addr, var):
     # the last local variable of a method is 'this'
     mvar_list_local, mvar_list_param = get_method_variable(method.get_method())
     if var == mvar_list_local[-1]:
-        return 'this'
+        return {"ins": 'this'}
 
     # skip the param
     if var in mvar_list_param:
-        return 'SKIP PARAM'
+        return {"ins": 'SKIP PARAM'}
 
     # prepare regular expression
     re_var = re.compile(var)
@@ -233,7 +249,8 @@ if __name__ == "__main__" :
                 idx += ins.get_length()
 
         #
-        print backtrace_variable(analyzed_method, path.get_idx(), uri_variable)
+        result = backtrace_variable(analyzed_method, path.get_idx(), uri_variable)
+        print_backtrace_result(result)
 
 #        print "\t %s %x %x" % (i.name, i.start, i.end), '[ NEXT = ', ', '.join( "%x-%x-%s" % (j[0], j[1], j[2].get_name()) for j in i.get_next() ), ']', '[ PREV = ', ', '.join( j[2].get_name() for j in i.get_prev() ), ']'
 #        for ins in i.get_instructions():
