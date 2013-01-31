@@ -26,7 +26,7 @@ def read_apk(apk_name):
 
     return a, d, dx
 
-def get_variable_list(method):
+def get_method_variable(method):
     """ Return local variable list and parameter list """
     # get number of local variables
     nb  = method.get_code().get_registers_size()
