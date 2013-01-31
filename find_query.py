@@ -51,6 +51,135 @@ def get_instruction_variable(instruction):
     else:
         return [ var for var in instruction.get_output().split(', ') if var[0] == 'v' ]
 
+def backtrace_variable(method, ins_addr, var):
+    # the last local variable of a method is 'this'
+    mvar_list_local, mvar_list_param = get_method_variable(method.get_method())
+    if var == mvar_list_local[-1]:
+        return 'this'
+
+    # skip the param
+    if var in mvar_list_param:
+        return 'SKIP PARAM'
+
+    # prepare regular expression
+    re_var = re.compile(var)
+
+    # get mappings
+    #     index -> instruction mapping
+    #     block -> address list mapping
+    idx = 0
+    instruction_dict = {}
+    block_address_list = {}
+    blocks = [ block for block in method.get_basic_blocks().get() ]
+    for block in blocks:
+        address_list = []
+        for ins in block.get_instructions():
+            instruction_dict[idx] = ins
+            address_list.append(idx)
+            idx += ins.get_length()
+        block_address_list[block] = address_list
+
+    # find block contains target instruction
+    ins_index_in_block = None
+    target_block = None
+    for block in reversed(blocks):
+        if block.get_start() > ins_addr:
+            continue
+        idx = block.get_start()
+        instructions = block.get_instructions()
+        for i in range(0, len(instructions)):
+            ins = instructions[i]
+            if idx == ins_addr:
+                ins_index_in_block = i
+                target_block = block
+                break
+            previous_idx = idx
+            idx += ins.get_length()
+        if target_block is not None:
+            break
+
+    #
+    current_block = target_block
+    address_list  = block_address_list[current_block]
+    address_list  = [ addr for addr in address_list if addr < ins_addr ]
+    depth = {}
+    depth[current_block] = 0
+    idx = address_list.pop()
+    result = None
+    stack  = []
+    while result is None:
+        instructions  = current_block.get_instructions()
+        current_depth = depth[current_block]
+        for i in range(ins_index_in_block - 1, -1, -1):
+            ins = instructions[i]
+            # print
+            print "{:04x} '{}' '{}'".format(idx, ins.get_name(), ins.get_output())
+            if re_var.match(ins.get_output()):
+                if ins.get_name() == "sget-object" or ins.get_name() == "new-instance" or ins.get_name() == "const-string":
+                    print "found " + var
+                    result = {"ins": ins}
+                    return result
+                elif ins.get_name() == "iget-object":
+                    ivar_list = get_instruction_variable(ins)
+                    if ivar_list[0] == var:
+                        result = {"ins": ins}
+                        for i in range(1, len(ivar_list)):
+                            ivar = ivar_list[i]
+                            print "ivar " + ivar
+                            result[ivar] = backtrace_variable(method, idx, ivar)
+                        return result
+                elif ins.get_name() == "move-result-object":
+                    # get previous instruction
+                    i -= 1
+                    ins = instructions[i]
+                    idx = address_list.pop()
+                    #
+                    print "found " + var
+                    ivar_list = get_instruction_variable(ins)
+                    result = {"ins": ins}
+                    print "follow {:04x} '{}' '{}'".format(idx, ins.get_name(), ins.get_output())
+                    for ivar in ivar_list:
+                        print "ivar " + ivar
+                        result[ivar] = backtrace_variable(method, idx, ivar)
+                    return result
+                elif ins.get_name() == "invoke-direct":
+                    ivar_list = get_instruction_variable(ins)
+                    result = {"ins": ins}
+                    print "follow {:04x} '{}' '{}'".format(idx, ins.get_name(), ins.get_output())
+                    for ivar in ivar_list:
+                        print "ivar " + ivar
+                        result[ivar] = backtrace_variable(method, idx, ivar)
+                    return result
+                else:
+                    print "\t\tWhat? Instruction No Define!"
+#                    result = ins
+#                    return result
+            idx = address_list.pop()
+        if result == None:
+            if len(stack) > 0:
+                print "Pop From Stack"
+                current_block = stack.pop(0)
+                address_list  = block_address_list[current_block]
+                idx = address_list.pop()
+            else:
+                previous_blocks = current_block.get_prev()
+                if len(previous_blocks) > 0:
+                    # push blocks to stack
+                    print "Find {%d} Prev Block(s)".format(len(previous_blocks))
+                    for block in current_block.get_prev():
+                        stack.append(block[2])
+                        depth[block[2]] = current_depth + 1
+                    # pop block to process
+                    current_block = stack.pop(0)
+                    address_list  = block_address_list[current_block]
+                    idx = address_list.pop()
+                    ins_index_in_block = current_block.get_nb_instructions()
+                else:
+                    print "No Prev Block"
+                    return None
+
+    print "\tFound {}".format(result)
+    print ""
 
 if __name__ == "__main__" :
     # load apk and analyze
@@ -83,7 +212,6 @@ if __name__ == "__main__" :
         # get analyzed method
         method = d.get_method_descriptor(src_class_name, src_method_name, src_descriptor)
         analyzed_method = dx.get_method(method)
-        print get_variable_list(method)
 
         # decompile to get source code
 #        decompiled_method = decompile.DvMethod(analyzed_method)
@@ -98,52 +226,14 @@ if __name__ == "__main__" :
             for index in range(0, len(instructions)):
                 ins = instructions[index]
                 if idx == path.get_idx():
-                    query_index = index
+                    ins_index_in_block = index
                     query_block = block
-                    # get uri parameter
-                    #
-                    # v0 ... v5, Landroid/content/ContentResolver;->query(...
-                    #     - split by ' ' to get first 'v0'
-                    #     - substring [1:] get '0'
-                    #     - convert to interge then + 1
-                    #     - add 'v' at begining
-                    uri_variable = 'v' + str(int(ins.get_output().split(' ')[0][1:])+1)
-                    # print
+                    uri_variable = get_instruction_variable(ins)[1]
                     # print "\t", idx, ins.get_name(), ins.get_output()
                 idx += ins.get_length()
 
-        # back trace to get the instruction where uri_variable is set
-        print "\tStart back tracing...";
-        found_ins = None
-        while found_ins == None:
-            instructions = query_block.get_instructions()
-            re_uri_variable = re.compile(uri_variable)
-            for index in range(query_index - 1, -1, -1):
-                ins = instructions[index]
-                if re_uri_variable.match(ins.get_output()):
-                    # print
-                    print "\t\t" + ins.get_name() + " " + ins.get_output()
-                    #
-                    if ins.get_name() == "sget-object":
-                        found_ins = ins.get_name() + " " + ins.get_output()
-                    elif ins.get_name() == "move-result-object":
-                        index -= 1
-                        ins = instructions[index]
-                        found_ins = ins.get_name() + " " + ins.get_output()
-                    else:
-                        found_ins = ins.get_name() + " " + ins.get_output()
-                    break;
-            if found_ins == None:
-                print "!"
-                previous_blocks = query_block.get_prev()
-                if len(previous_blocks) > 0:
-                    query_block = query_block.get_prev()[0][2]
-                else:
-                    print "No prev block"
-                    break
-
-        print "\tFound URI {}".format(found_ins)
-        print ""
+        #
+        print backtrace_variable(analyzed_method, path.get_idx(), uri_variable)
 
 #        print "\t %s %x %x" % (i.name, i.start, i.end), '[ NEXT = ', ', '.join( "%x-%x-%s" % (j[0], j[1], j[2].get_name()) for j in i.get_next() ), ']', '[ PREV = ', ', '.join( j[2].get_name() for j in i.get_prev() ), ']'
 #        for ins in i.get_instructions():
