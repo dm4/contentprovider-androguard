@@ -41,6 +41,16 @@ def get_method_variable(method):
     else :
         return [ "v{:d}".format(i) for i in range(0, nb) ], []
 
+def get_instruction_variable(instruction):
+    # opcode is invoke-xxx/range
+    if instruction.get_name()[-6:] == '/range':
+        var_from, var_to = instruction.get_output().split(', ')[0].split(' ... ')
+        var_from = int(var_from[1:])
+        var_to   = int(var_to[1:])
+        return [ "v{:d}".format(i) for i in range(var_from, var_to + 1) ]
+    else:
+        return [ var for var in instruction.get_output().split(', ') if var[0] == 'v' ]
+
 
 if __name__ == "__main__" :
     # load apk and analyze
