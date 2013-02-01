@@ -150,6 +150,9 @@ def backtrace_variable(method, ins_addr, var):
         descriptor = method.get_method().get_descriptor().replace('(', '\(').replace(')', '\)').replace('[', '\[').replace(']', '\]')
         print WARN_MSG_PREFIX + "\033[1;30mFound {} in param list\033[0m".format(var)
         caller_paths = dx.tainted_packages.search_methods(method.get_method().get_class_name(), method.get_method().get_name(), descriptor)
+        if len(caller_paths) == 0:
+            print "NO ONE CALL YOU"
+            return {"ins": "null"}
         for path in caller_paths:
             analyzed_method = get_analyzed_method_from_path(path)
             print analyzed_method.get_method().get_class_name(), analyzed_method.get_method().get_name(), analyzed_method.get_method().get_descriptor()
