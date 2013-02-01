@@ -195,6 +195,18 @@ def backtrace_variable(method, ins_addr, var):
     print "\tFound {}".format(result)
     print ""
 
+def get_instruction_by_idx(method, idx):
+    # find query instruction position
+    idx = 0
+    blocks = method.get_basic_blocks().get()
+    for block in blocks:
+        instructions = block.get_instructions()
+        for index in range(0, len(instructions)):
+            ins = instructions[index]
+            if idx == path.get_idx():
+                return ins
+            idx += ins.get_length()
+
 if __name__ == "__main__" :
     # load apk and analyze
     a, d, dx = read_apk("apk/tunein.player.apk")
@@ -206,41 +218,30 @@ if __name__ == "__main__" :
     # prepare regular expression
     re_skip_class = re.compile('Landroid|Lcom/google')
 
-    i = 0
-    for path in query_paths:
+    for i in range(0, len(query_paths)):
+        path = query_paths[i]
         print "Path {:2d}".format(i)
-        i += 1
 
         # get source class & method name
         cm = d.get_class_manager()
         src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-        dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
         print "\tClass  {0}".format(src_class_name)
         print "\tMethod {0}".format(src_method_name)
         print "\tOffset 0x{0:04x}".format(path.get_idx())
-
-        if re_skip_class.match(src_class_name):
-            continue
 
         # get analyzed method
         method = d.get_method_descriptor(src_class_name, src_method_name, src_descriptor)
         analyzed_method = dx.get_method(method)
 
+        # skip built-in library
+        if re_skip_class.match(src_class_name):
+            print "Skip {}".format(src_class_name)
+            continue
 
-        # find query instruction position
-        idx = 0
-        blocks = analyzed_method.get_basic_blocks().get()
-        for block in blocks:
-            instructions = block.get_instructions()
-            for index in range(0, len(instructions)):
-                ins = instructions[index]
-                if idx == path.get_idx():
-                    ins_index_in_block = index
-                    query_block = block
-                    uri_variable = get_instruction_variable(ins)[1]
-                    # print "\t", idx, ins.get_name(), ins.get_output()
-                idx += ins.get_length()
+        # get variable name
+        target_ins = get_instruction_by_idx(analyzed_method, path.get_idx())
+        uri_variable = get_instruction_variable(target_ins)[1]
 
-        #
+        # backtrace variable
         result = backtrace_variable(analyzed_method, path.get_idx(), uri_variable)
         print_backtrace_result(result)
