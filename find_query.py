@@ -145,7 +145,7 @@ def backtrace_variable(method, ins_addr, var):
                         result = {"ins": ins}
                         for i in range(1, len(ivar_list)):
                             ivar = ivar_list[i]
-                            print "ivar " + ivar
+                            print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                             result[ivar] = backtrace_variable(method, idx, ivar)
                         return result
                 elif ins.get_name() == "move-result-object":
