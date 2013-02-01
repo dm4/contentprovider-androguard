@@ -162,18 +162,18 @@ def backtrace_variable(method, ins_addr, var):
             print get_instruction_variable(target_ins)
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
-            if target_ins.get_name() == 'invoke-direct' or target_ins.get_name() == 'invoke-virtual':
+            if target_ins.get_name() == 'invoke-direct' or target_ins.get_name() == 'invoke-virtual' or target_ins.get_name() == 'invoke-direct/range':
                 target_var = target_var_list[target_param_index + 1]
             elif target_ins.get_name() == 'invoke-static':
                 target_var = target_var_list[target_param_index]
             else:
-                print 'NOT IMPLEMENT YET'
+                print 'NOT IMPLEMENT YET:', target_ins.get_name()
             print "find {}".format(target_var)
             #
             return backtrace_variable(analyzed_method, path.get_idx(), target_var)
 
     # prepare regular expression
-    re_var = re.compile(var)
+    re_var = re.compile(var + '([^0-9a-zA-Z_]|$)')
 
     # get mappings
     #     index -> instruction mapping
@@ -216,6 +216,8 @@ def backtrace_variable(method, ins_addr, var):
     depth = {}
     depth[current_block] = 0
     stack  = []
+    traced_block = {}
+    traced_block[current_block] = True
     while True:
         instructions  = current_block.get_instructions()
         current_depth = depth[current_block]
@@ -225,11 +227,11 @@ def backtrace_variable(method, ins_addr, var):
             # print
             print WARN_MSG_PREFIX + "\033[1;34m{:04x}\033[0m {:20s} {}".format(idx, ins.get_name(), ins.get_output())
             if re_var.match(ins.get_output()):
-                if ins.get_name() == "sget-object" or ins.get_name() == "new-instance" or ins.get_name() == "const-string" or ins.get_name() == "const/4":
+                if ins.get_name() == "sget-object" or ins.get_name() == "new-instance" or ins.get_name() == "const-string" or ins.get_name() == "const" or ins.get_name() == "const/4" or ins.get_name() == "const/16":
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif ins.get_name() == "iget-object":
+                elif ins.get_name() == "iget-object" or ins.get_name() == "aget-object" or ins.get_name() == "move" or ins.get_name() == "move-object" or ins.get_name() == "move-object/from16":
                     ivar_list = get_instruction_variable(ins)
                     if ivar_list[0] == var:
                         result = {"ins": ins}
@@ -238,6 +240,8 @@ def backtrace_variable(method, ins_addr, var):
                             print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                             result[ivar] = backtrace_variable(method, idx, ivar)
                         return result
+                    else:
+                        print ERROR_MSG_PREFIX + "ERROR", ins.get_name(), ins.get_output()
                 elif ins.get_name() == "move-result-object":
                     # get previous instruction
                     i -= 1
@@ -252,7 +256,7 @@ def backtrace_variable(method, ins_addr, var):
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar)
                     return result
-                elif ins.get_name() == "invoke-direct" or ins.get_name() == "invoke-virtual":
+                elif ins.get_name() == "invoke-direct" or ins.get_name() == "invoke-virtual" or ins.get_name() == "invoke-static" or ins.get_name() == "invoke-direct/range":
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
@@ -260,31 +264,30 @@ def backtrace_variable(method, ins_addr, var):
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar)
                     return result
-                elif ins.get_name() == "check-cast":
+                elif ins.get_name() == "check-cast" or ins.get_name() == 'if-eqz' or ins.get_name() == 'if-nez' or ins.get_name() == 'if-lt' or ins.get_name() == 'if-gez':
                     continue
                 else:
-                    print "\t\tWhat? Instruction No Define!"
+                    print "\t\tWhat? Instruction No Define:", ins.get_name(), ins.get_output()
 
         # result not found in current_block
+        # push previous blocks to stack
+        previous_blocks = current_block.get_prev()
+        print WARN_MSG_PREFIX + "\033[1;30mFind {:d} Prev Block(s)\033[0m".format(len(previous_blocks))
+        for block in current_block.get_prev():
+            if not traced_block.has_key(block[2]):
+                stack.append(block[2])
+                depth[block[2]] = current_depth + 1
+                traced_block[block[2]] = True
+
+        # pop one block to process
         if len(stack) > 0:
             print WARN_MSG_PREFIX + "\033[1;30mPop From Stack\033[0m"
             current_block = stack.pop(0)
             address_list  = list(block_address_list[current_block])
+            ins_index_in_block = current_block.get_nb_instructions()
         else:
-            previous_blocks = current_block.get_prev()
-            if len(previous_blocks) > 0:
-                # push blocks to stack
-                print WARN_MSG_PREFIX + "\033[1;30mFind {:d} Prev Block(s)\033[0m".format(len(previous_blocks))
-                for block in current_block.get_prev():
-                    stack.append(block[2])
-                    depth[block[2]] = current_depth + 1
-                # pop block to process
-                current_block = stack.pop(0)
-                address_list  = list(block_address_list[current_block])
-                ins_index_in_block = current_block.get_nb_instructions()
-            else:
-                print WARN_MSG_PREFIX + "\033[1;30mNo Prev Block\033[0m"
-                return None
+            print WARN_MSG_PREFIX + "\033[1;30mNo Prev Block\033[0m"
+            return None
 
     print "\tFound {}".format(result)
     print ""
