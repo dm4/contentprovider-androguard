@@ -180,7 +180,7 @@ def backtrace_variable(method, ins_addr, var):
 
     #
     current_block = target_block
-    address_list  = block_address_list[current_block]
+    address_list  = list(block_address_list[current_block])
     address_list  = [ addr for addr in address_list if addr < ins_addr ]
     depth = {}
     depth[current_block] = 0
@@ -233,12 +233,12 @@ def backtrace_variable(method, ins_addr, var):
                 elif ins.get_name() == "check-cast":
                     continue
                 else:
-                    print "\t\tWhat? Instruction No Define!"
+                    print "\t\tWhat? Instruction({}) No Define!".format(ins.get_name())
         if result == None:
             if len(stack) > 0:
                 print WARN_MSG_PREFIX + "\033[1;30mPop From Stack\033[0m"
                 current_block = stack.pop(0)
-                address_list  = block_address_list[current_block]
+                address_list  = list(block_address_list[current_block])
             else:
                 previous_blocks = current_block.get_prev()
                 if len(previous_blocks) > 0:
@@ -249,7 +249,7 @@ def backtrace_variable(method, ins_addr, var):
                         depth[block[2]] = current_depth + 1
                     # pop block to process
                     current_block = stack.pop(0)
-                    address_list  = block_address_list[current_block]
+                    address_list  = list(block_address_list[current_block])
                     ins_index_in_block = current_block.get_nb_instructions()
                 else:
                     print WARN_MSG_PREFIX + "\033[1;30mNo Prev Block\033[0m"
