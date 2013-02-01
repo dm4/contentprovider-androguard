@@ -61,7 +61,7 @@ def _print_backtrace_result(result, depth):
     if type(ins) == type('str'):
         print OK_MSG_PREFIX + indent + ins
     else:
-        print OK_MSG_PREFIX + indent + ins.get_name() + ins.get_output()
+        print OK_MSG_PREFIX + indent + "{:16s}{}".format(ins.get_name(), ins.get_output())
     for var in result.keys():
         if var == 'ins':
             continue
