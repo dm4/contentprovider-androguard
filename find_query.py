@@ -124,7 +124,7 @@ def _print_backtrace_result_decompile(result):
 
 def print_backtrace_result(result, decompile=1):
     if decompile == 1:
-        print _print_backtrace_result_decompile(result)
+        print OK_MSG_PREFIX + "Result: {}".format(_print_backtrace_result_decompile(result))
     else:
         _print_backtrace_result(result, 0);
 
