@@ -7,6 +7,9 @@ import androlyze
 import os, re
 
 apk_session_dir = "session/"
+ERROR_MSG_PREFIX = "\033[1;31m[!]\033[m "
+OK_MSG_PREFIX = "\033[1;32m[+]\033[m "
+WARN_MSG_PREFIX = "\033[0;33m[*]\033[m "
 
 def read_apk(apk_name):
     """ Read apk file and return a, d, dx """
@@ -55,13 +58,13 @@ def _print_backtrace_result(result, depth):
     indent = "\t" * depth
     ins = result["ins"]
     if type(ins) == type('str'):
-        print indent, ins
+        print OK_MSG_PREFIX, indent, ins
     else:
-        print indent, ins.get_name(), ins.get_output()
+        print OK_MSG_PREFIX, indent, ins.get_name(), ins.get_output()
     for var in result.keys():
         if var == 'ins':
             continue
-        print indent, var
+        print OK_MSG_PREFIX, indent, var
         _print_backtrace_result(result[var], depth + 1)
 
 def print_backtrace_result(result):
@@ -75,6 +78,7 @@ def backtrace_variable(method, ins_addr, var):
 
     # skip the param
     if var in mvar_list_param:
+        print WARN_MSG_PREFIX + "\033[1;30mFound {} in param list\033[0m".format(var)
         return {"ins": 'SKIP PARAM'}
 
     # prepare regular expression
@@ -129,10 +133,10 @@ def backtrace_variable(method, ins_addr, var):
         for i in range(ins_index_in_block - 1, -1, -1):
             ins = instructions[i]
             # print
-            print "{:04x} '{}' '{}'".format(idx, ins.get_name(), ins.get_output())
+            print WARN_MSG_PREFIX + "\033[1;34m{:04x}\033[0m {:20s} {}".format(idx, ins.get_name(), ins.get_output())
             if re_var.match(ins.get_output()):
                 if ins.get_name() == "sget-object" or ins.get_name() == "new-instance" or ins.get_name() == "const-string":
-                    print "found " + var
+                    print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
                 elif ins.get_name() == "iget-object":
@@ -150,20 +154,20 @@ def backtrace_variable(method, ins_addr, var):
                     ins = instructions[i]
                     idx = address_list.pop()
                     #
-                    print "found " + var
+                    print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
-                    print "follow {:04x} '{}' '{}'".format(idx, ins.get_name(), ins.get_output())
+                    print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
                     for ivar in ivar_list:
-                        print "ivar " + ivar
+                        print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar)
                     return result
                 elif ins.get_name() == "invoke-direct":
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
-                    print "follow {:04x} '{}' '{}'".format(idx, ins.get_name(), ins.get_output())
+                    print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
                     for ivar in ivar_list:
-                        print "ivar " + ivar
+                        print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar)
                     return result
                 else:
