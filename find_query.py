@@ -175,14 +175,14 @@ def backtrace_variable(method, ins_addr, var):
                     print "\t\tWhat? Instruction No Define!"
         if result == None:
             if len(stack) > 0:
-                print "Pop From Stack"
+                print WARN_MSG_PREFIX + "\033[1;30mPop From Stack\033[0m"
                 current_block = stack.pop(0)
                 address_list  = block_address_list[current_block]
             else:
                 previous_blocks = current_block.get_prev()
                 if len(previous_blocks) > 0:
                     # push blocks to stack
-                    print "Find {:d} Prev Block(s)".format(len(previous_blocks))
+                    print WARN_MSG_PREFIX + "\033[1;30mFind {:d} Prev Block(s)\033[0m".format(len(previous_blocks))
                     for block in current_block.get_prev():
                         stack.append(block[2])
                         depth[block[2]] = current_depth + 1
@@ -191,7 +191,7 @@ def backtrace_variable(method, ins_addr, var):
                     address_list  = block_address_list[current_block]
                     ins_index_in_block = current_block.get_nb_instructions()
                 else:
-                    print "No Prev Block"
+                    print WARN_MSG_PREFIX + "\033[1;30mNo Prev Block\033[0m"
                     return None
 
     print "\tFound {}".format(result)
