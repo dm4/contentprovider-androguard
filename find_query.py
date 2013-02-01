@@ -136,7 +136,7 @@ def backtrace_variable(method, ins_addr, var):
             # print
             print WARN_MSG_PREFIX + "\033[1;34m{:04x}\033[0m {:20s} {}".format(idx, ins.get_name(), ins.get_output())
             if re_var.match(ins.get_output()):
-                if ins.get_name() == "sget-object" or ins.get_name() == "new-instance" or ins.get_name() == "const-string":
+                if ins.get_name() == "sget-object" or ins.get_name() == "new-instance" or ins.get_name() == "const-string" or ins.get_name() == "const/4":
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
@@ -163,7 +163,7 @@ def backtrace_variable(method, ins_addr, var):
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar)
                     return result
-                elif ins.get_name() == "invoke-direct":
+                elif ins.get_name() == "invoke-direct" or ins.get_name() == "invoke-virtual":
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
@@ -171,6 +171,8 @@ def backtrace_variable(method, ins_addr, var):
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar)
                     return result
+                elif ins.get_name() == "check-cast":
+                    continue
                 else:
                     print "\t\tWhat? Instruction No Define!"
         if result == None:
