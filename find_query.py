@@ -168,8 +168,6 @@ def backtrace_variable(method, ins_addr, var):
                     return result
                 else:
                     print "\t\tWhat? Instruction No Define!"
-#                    result = ins
-#                    return result
             idx = address_list.pop()
         if result == None:
             if len(stack) > 0:
@@ -215,7 +213,6 @@ if __name__ == "__main__" :
 
         # get source class & method name
         cm = d.get_class_manager()
-    #    method = cm.get_method_ref(path.src_idx)
         src_class_name, src_method_name, src_descriptor = path.get_src(cm)
         dst_class_name, dst_method_name, dst_descriptor = path.get_dst(cm)
         print "\tClass  {0}".format(src_class_name)
@@ -229,10 +226,6 @@ if __name__ == "__main__" :
         method = d.get_method_descriptor(src_class_name, src_method_name, src_descriptor)
         analyzed_method = dx.get_method(method)
 
-        # decompile to get source code
-#        decompiled_method = decompile.DvMethod(analyzed_method)
-#        decompiled_method.process()
-#        print decompiled_method.get_source()
 
         # find query instruction position
         idx = 0
@@ -251,9 +244,3 @@ if __name__ == "__main__" :
         #
         result = backtrace_variable(analyzed_method, path.get_idx(), uri_variable)
         print_backtrace_result(result)
-
-#        print "\t %s %x %x" % (i.name, i.start, i.end), '[ NEXT = ', ', '.join( "%x-%x-%s" % (j[0], j[1], j[2].get_name()) for j in i.get_next() ), ']', '[ PREV = ', ', '.join( j[2].get_name() for j in i.get_prev() ), ']'
-#        for ins in i.get_instructions():
-#            print "\t\t %x" % idx, ins.get_name(), ins.get_output()
-#            idx += ins.get_length()
-#        print ""
