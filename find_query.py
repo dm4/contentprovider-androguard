@@ -107,7 +107,7 @@ def _print_backtrace_result_decompile(result):
                 r += _print_backtrace_result_decompile(result[param])
             r += ")"
             return r
-        elif ins.get_name() == "const-string":
+        elif ins.get_name() == "const-string" or ins.get_name() == "const/4":
             return ins.get_output().split(', ')[-1]
         elif ins.get_name() == "new-instance":
             class_name, method_name = get_invoke_info(ins.get_output())
