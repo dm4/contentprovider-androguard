@@ -129,10 +129,12 @@ def print_backtrace_result(result, decompile=1):
         _print_backtrace_result(result, 0);
 
 def backtrace_variable(method, ins_addr, var):
-    # the last local variable of a method is 'this'
     mvar_list_local, mvar_list_param = get_method_variable(method.get_method())
-    if var == mvar_list_local[-1]:
-        return {"ins": 'this'}
+    # the last local variable of a non-static method is 'this'
+    #     0x08 is static flag
+    if method.get_method().get_access_flags() & 0x08 == 0:
+        if var == mvar_list_local[-1]:
+            return {"ins": 'this'}
 
     # skip the param
     if var in mvar_list_param:
