@@ -56,16 +56,16 @@ def get_instruction_variable(instruction):
         return [ var for var in instruction.get_output().split(', ') if var[0] == 'v' ]
 
 def _print_backtrace_result(result, depth):
-    indent = "\t" * depth
+    indent = "    " * depth
     ins = result["ins"]
     if type(ins) == type('str'):
-        print OK_MSG_PREFIX, indent, ins
+        print OK_MSG_PREFIX + indent + ins
     else:
-        print OK_MSG_PREFIX, indent, ins.get_name(), ins.get_output()
+        print OK_MSG_PREFIX + indent + ins.get_name() + ins.get_output()
     for var in result.keys():
         if var == 'ins':
             continue
-        print OK_MSG_PREFIX, indent, var
+        print OK_MSG_PREFIX + indent + var
         _print_backtrace_result(result[var], depth + 1)
 
 def print_backtrace_result(result):
