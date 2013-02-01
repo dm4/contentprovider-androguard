@@ -4,6 +4,7 @@ from androguard.core.bytecodes import dvm, apk
 from androguard.core.analysis import analysis
 from androguard.decompiler.dad import decompile
 import androlyze
+from androlyze import *
 import os, re
 
 apk_session_dir = "session/"
@@ -124,13 +125,13 @@ def backtrace_variable(method, ins_addr, var):
     address_list  = [ addr for addr in address_list if addr < ins_addr ]
     depth = {}
     depth[current_block] = 0
-    idx = address_list.pop()
     result = None
     stack  = []
     while result is None:
         instructions  = current_block.get_instructions()
         current_depth = depth[current_block]
         for i in range(ins_index_in_block - 1, -1, -1):
+            idx = address_list.pop()
             ins = instructions[i]
             # print
             print WARN_MSG_PREFIX + "\033[1;34m{:04x}\033[0m {:20s} {}".format(idx, ins.get_name(), ins.get_output())
@@ -172,25 +173,22 @@ def backtrace_variable(method, ins_addr, var):
                     return result
                 else:
                     print "\t\tWhat? Instruction No Define!"
-            idx = address_list.pop()
         if result == None:
             if len(stack) > 0:
                 print "Pop From Stack"
                 current_block = stack.pop(0)
                 address_list  = block_address_list[current_block]
-                idx = address_list.pop()
             else:
                 previous_blocks = current_block.get_prev()
                 if len(previous_blocks) > 0:
                     # push blocks to stack
-                    print "Find {%d} Prev Block(s)".format(len(previous_blocks))
+                    print "Find {:d} Prev Block(s)".format(len(previous_blocks))
                     for block in current_block.get_prev():
                         stack.append(block[2])
                         depth[block[2]] = current_depth + 1
                     # pop block to process
                     current_block = stack.pop(0)
                     address_list  = block_address_list[current_block]
-                    idx = address_list.pop()
                     ins_index_in_block = current_block.get_nb_instructions()
                 else:
                     print "No Prev Block"
