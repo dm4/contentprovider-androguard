@@ -68,6 +68,12 @@ def get_get_object_info(ins_output):
     class_name, attribute_name = m.group(1), m.group(2)
     return class_name, attribute_name
 
+def get_analyzed_method_from_path(path):
+    src_class_name, src_method_name, src_descriptor = path.get_src(cm)
+    method = d.get_method_descriptor(src_class_name, src_method_name, src_descriptor)
+    analyzed_method = dx.get_method(method)
+    return analyzed_method
+
 def _print_backtrace_result(result, depth):
     indent = "    " * depth
     ins = result["ins"]
@@ -130,16 +136,38 @@ def print_backtrace_result(result, decompile=1):
 
 def backtrace_variable(method, ins_addr, var):
     mvar_list_local, mvar_list_param = get_method_variable(method.get_method())
+
     # the last local variable of a non-static method is 'this'
     #     0x08 is static flag
     if method.get_method().get_access_flags() & 0x08 == 0:
         if var == mvar_list_local[-1]:
             return {"ins": 'this'}
 
-    # skip the param
+    # if is param, get caller method & backtrace
+    result = None
+    caller_stack = []
     if var in mvar_list_param:
+        descriptor = method.get_method().get_descriptor().replace('(', '\(').replace(')', '\)').replace('[', '\[').replace(']', '\]')
         print WARN_MSG_PREFIX + "\033[1;30mFound {} in param list\033[0m".format(var)
-        return {"ins": 'SKIP PARAM'}
+        caller_paths = dx.tainted_packages.search_methods(method.get_method().get_class_name(), method.get_method().get_name(), descriptor)
+        for path in caller_paths:
+            analyzed_method = get_analyzed_method_from_path(path)
+            print analyzed_method.get_method().get_class_name(), analyzed_method.get_method().get_name(), analyzed_method.get_method().get_descriptor()
+            # get variable name
+            target_ins = get_instruction_by_idx(analyzed_method, path.get_idx())
+            print target_ins.get_name(), target_ins.get_output()
+            print get_instruction_variable(target_ins)
+            target_var_list = get_instruction_variable(target_ins)
+            target_param_index = mvar_list_param.index(var)
+            if target_ins.get_name() == 'invoke-direct' or target_ins.get_name() == 'invoke-virtual':
+                target_var = target_var_list[target_param_index + 1]
+            elif target_ins.get_name() == 'invoke-static':
+                target_var = target_var_list[target_param_index]
+            else:
+                print 'NOT IMPLEMENT YET'
+            print "find {}".format(target_var)
+            #
+            return backtrace_variable(analyzed_method, path.get_idx(), target_var)
 
     # prepare regular expression
     re_var = re.compile(var)
@@ -184,9 +212,8 @@ def backtrace_variable(method, ins_addr, var):
     address_list  = [ addr for addr in address_list if addr < ins_addr ]
     depth = {}
     depth[current_block] = 0
-    result = None
     stack  = []
-    while result is None:
+    while True:
         instructions  = current_block.get_instructions()
         current_depth = depth[current_block]
         for i in range(ins_index_in_block - 1, -1, -1):
@@ -233,32 +260,33 @@ def backtrace_variable(method, ins_addr, var):
                 elif ins.get_name() == "check-cast":
                     continue
                 else:
-                    print "\t\tWhat? Instruction({}) No Define!".format(ins.get_name())
-        if result == None:
-            if len(stack) > 0:
-                print WARN_MSG_PREFIX + "\033[1;30mPop From Stack\033[0m"
+                    print "\t\tWhat? Instruction No Define!"
+
+        # result not found in current_block
+        if len(stack) > 0:
+            print WARN_MSG_PREFIX + "\033[1;30mPop From Stack\033[0m"
+            current_block = stack.pop(0)
+            address_list  = list(block_address_list[current_block])
+        else:
+            previous_blocks = current_block.get_prev()
+            if len(previous_blocks) > 0:
+                # push blocks to stack
+                print WARN_MSG_PREFIX + "\033[1;30mFind {:d} Prev Block(s)\033[0m".format(len(previous_blocks))
+                for block in current_block.get_prev():
+                    stack.append(block[2])
+                    depth[block[2]] = current_depth + 1
+                # pop block to process
                 current_block = stack.pop(0)
                 address_list  = list(block_address_list[current_block])
+                ins_index_in_block = current_block.get_nb_instructions()
             else:
-                previous_blocks = current_block.get_prev()
-                if len(previous_blocks) > 0:
-                    # push blocks to stack
-                    print WARN_MSG_PREFIX + "\033[1;30mFind {:d} Prev Block(s)\033[0m".format(len(previous_blocks))
-                    for block in current_block.get_prev():
-                        stack.append(block[2])
-                        depth[block[2]] = current_depth + 1
-                    # pop block to process
-                    current_block = stack.pop(0)
-                    address_list  = list(block_address_list[current_block])
-                    ins_index_in_block = current_block.get_nb_instructions()
-                else:
-                    print WARN_MSG_PREFIX + "\033[1;30mNo Prev Block\033[0m"
-                    return None
+                print WARN_MSG_PREFIX + "\033[1;30mNo Prev Block\033[0m"
+                return None
 
     print "\tFound {}".format(result)
     print ""
 
-def get_instruction_by_idx(method, idx):
+def get_instruction_by_idx(method, target_idx):
     # find query instruction position
     idx = 0
     blocks = method.get_basic_blocks().get()
@@ -266,13 +294,14 @@ def get_instruction_by_idx(method, idx):
         instructions = block.get_instructions()
         for index in range(0, len(instructions)):
             ins = instructions[index]
-            if idx == path.get_idx():
+            if idx == target_idx:
                 return ins
             idx += ins.get_length()
 
 if __name__ == "__main__" :
     # load apk and analyze
     a, d, dx = read_apk("apk/tunein.player.apk")
+    cm = d.get_class_manager()
 
     # search ContentResolver.query()
     query_paths = dx.tainted_packages.search_methods("^Landroid/content/ContentResolver;$", "^query$", ".")
@@ -285,20 +314,18 @@ if __name__ == "__main__" :
         path = query_paths[i]
         print "Path {:2d}".format(i)
 
-        # get source class & method name
-        cm = d.get_class_manager()
-        src_class_name, src_method_name, src_descriptor = path.get_src(cm)
-        print "\tClass  {0}".format(src_class_name)
-        print "\tMethod {0}".format(src_method_name)
+        # get analyzed method
+        analyzed_method = get_analyzed_method_from_path(path)
+        method = analyzed_method.get_method()
+
+        # print source class & method name
+        print "\tClass  {0}".format(method.get_class_name())
+        print "\tMethod {0}".format(method.get_name())
         print "\tOffset 0x{0:04x}".format(path.get_idx())
 
-        # get analyzed method
-        method = d.get_method_descriptor(src_class_name, src_method_name, src_descriptor)
-        analyzed_method = dx.get_method(method)
-
         # skip built-in library
-        if re_skip_class.match(src_class_name):
-            print "Skip {}".format(src_class_name)
+        if re_skip_class.match(method.get_class_name()):
+            print "Skip {}".format(method.get_class_name())
             continue
 
         # get variable name
@@ -308,3 +335,4 @@ if __name__ == "__main__" :
         # backtrace variable
         result = backtrace_variable(analyzed_method, path.get_idx(), uri_variable)
         print_backtrace_result(result)
+        print_backtrace_result(result, 0)
