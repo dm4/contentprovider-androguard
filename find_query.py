@@ -55,6 +55,19 @@ def get_instruction_variable(instruction):
     else:
         return [ var for var in instruction.get_output().split(', ') if var[0] == 'v' ]
 
+def get_invoke_info(ins_output):
+    """ Will return class_name, method_name """
+    method_code = ins_output.split(', ')[-1]
+    m = re.match('^L([^;]*);(?:->(.*)\()?', method_code)
+    class_name, method_name = m.group(1), m.group(2)
+    return class_name, method_name
+
+def get_get_object_info(ins_output):
+    method_code = ins_output.split(', ')[-1]
+    m = re.match('^L([^;]*);->([^ ]*)', method_code)
+    class_name, attribute_name = m.group(1), m.group(2)
+    return class_name, attribute_name
+
 def _print_backtrace_result(result, depth):
     indent = "    " * depth
     ins = result["ins"]
@@ -68,8 +81,47 @@ def _print_backtrace_result(result, depth):
         print OK_MSG_PREFIX + indent + var
         _print_backtrace_result(result[var], depth + 1)
 
-def print_backtrace_result(result):
-    _print_backtrace_result(result, 0);
+def _print_backtrace_result_decompile(result):
+    ins = result["ins"]
+    if type(ins) == type('str'):
+        return ins
+    else:
+        param_list = get_instruction_variable(ins)
+        if ins.get_name() == "invoke-static":
+            class_name, method_name = get_invoke_info(ins.get_output())
+            r = "{}.{}(".format(class_name, method_name)
+            for param in param_list:
+                r += _print_backtrace_result_decompile(result[param])
+            r += ")"
+            return r
+        elif ins.get_name() == "invoke-virtual" or ins.get_name() == "invoke-direct":
+            class_name, method_name = get_invoke_info(ins.get_output())
+            instance = param_list.pop(0)
+            r = "{}.{}(".format(_print_backtrace_result_decompile(result[instance]), method_name)
+            for param in param_list:
+                r += _print_backtrace_result_decompile(result[param])
+            r += ")"
+            return r
+        elif ins.get_name() == "const-string":
+            return ins.get_output().split(', ')[-1]
+        elif ins.get_name() == "new-instance":
+            class_name, method_name = get_invoke_info(ins.get_output())
+            return "new {}".format(class_name)
+        elif ins.get_name() == "iget-object":
+            class_name, attribute_name = get_get_object_info(ins.get_output())
+            r = "{}.{}".format(_print_backtrace_result_decompile(result[param_list[1]]), attribute_name)
+            return r
+        elif ins.get_name() == "sget-object":
+            class_name, attribute_name = get_get_object_info(ins.get_output())
+            r = "{}.{}".format(class_name, attribute_name)
+            return r
+        return "{} {}".format(ins.get_name(), ins.get_output())
+
+def print_backtrace_result(result, decompile=1):
+    if decompile == 1:
+        print _print_backtrace_result_decompile(result)
+    else:
+        _print_backtrace_result(result, 0);
 
 def backtrace_variable(method, ins_addr, var):
     # the last local variable of a method is 'this'
