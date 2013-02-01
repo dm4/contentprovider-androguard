@@ -98,7 +98,12 @@ def _print_backtrace_result_decompile(result):
             class_name, method_name = get_invoke_info(ins.get_output())
             instance = param_list.pop(0)
             r = "{}.{}(".format(_print_backtrace_result_decompile(result[instance]), method_name)
+            add_comma = False
             for param in param_list:
+                if add_comma:
+                    r += ", "
+                else:
+                    add_comma = True
                 r += _print_backtrace_result_decompile(result[param])
             r += ")"
             return r
