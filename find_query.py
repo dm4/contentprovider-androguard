@@ -139,7 +139,7 @@ def backtrace_variable(method, ins_addr, var):
 
     # the last local variable of a non-static method is 'this'
     #     0x08 is static flag
-    if method.get_method().get_access_flags() & 0x08 == 0:
+    if not 'static' in method.get_method().get_access_flags_string().split(' '):
         if var == mvar_list_local[-1]:
             return {"ins": 'this'}
 
