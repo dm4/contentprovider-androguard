@@ -151,15 +151,15 @@ def backtrace_variable(method, ins_addr, var):
         print WARN_MSG_PREFIX + "\033[1;30mFound {} in param list\033[0m".format(var)
         caller_paths = dx.tainted_packages.search_methods(method.get_method().get_class_name(), method.get_method().get_name(), descriptor)
         if len(caller_paths) == 0:
-            print "NO ONE CALL YOU"
+            print WARN_MSG_PREFIX + "\033[1;30mNO ONE CALL YOU\033[0m"
             return {"ins": "null"}
         for path in caller_paths:
             analyzed_method = get_analyzed_method_from_path(path)
-            print analyzed_method.get_method().get_class_name(), analyzed_method.get_method().get_name(), analyzed_method.get_method().get_descriptor()
+            print WARN_MSG_PREFIX + analyzed_method.get_method().get_class_name(), analyzed_method.get_method().get_name(), analyzed_method.get_method().get_descriptor()
             # get variable name
             target_ins = get_instruction_by_idx(analyzed_method, path.get_idx())
-            print target_ins.get_name(), target_ins.get_output()
-            print get_instruction_variable(target_ins)
+            print WARN_MSG_PREFIX + target_ins.get_name(), target_ins.get_output()
+            print WARN_MSG_PREFIX, get_instruction_variable(target_ins)
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
             if target_ins.get_name() == 'invoke-direct' or target_ins.get_name() == 'invoke-virtual' or target_ins.get_name() == 'invoke-direct/range':
@@ -167,8 +167,8 @@ def backtrace_variable(method, ins_addr, var):
             elif target_ins.get_name() == 'invoke-static':
                 target_var = target_var_list[target_param_index]
             else:
-                print 'NOT IMPLEMENT YET:', target_ins.get_name()
-            print "find {}".format(target_var)
+                print WARN_MSG_PREFIX + '\033[1;30mNOT IMPLEMENT YET: {}\033[0m'.format(target_ins.get_name())
+            print WARN_MSG_PREFIX + "\033[1;30mFind {}\033[0m".format(target_var)
             #
             return backtrace_variable(analyzed_method, path.get_idx(), target_var)
 
@@ -267,7 +267,7 @@ def backtrace_variable(method, ins_addr, var):
                 elif ins.get_name() == "check-cast" or ins.get_name() == 'if-eqz' or ins.get_name() == 'if-nez' or ins.get_name() == 'if-lt' or ins.get_name() == 'if-gez':
                     continue
                 else:
-                    print "\t\tWhat? Instruction No Define:", ins.get_name(), ins.get_output()
+                    print WARN_MSG_PREFIX + "\033[0;31m\t\tWhat? Instruction No Define:{} {}\033[0m".format(ins.get_name(), ins.get_output())
 
         # result not found in current_block
         # push previous blocks to stack
