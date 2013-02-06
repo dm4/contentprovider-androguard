@@ -63,6 +63,7 @@ def get_invoke_info(ins_output):
     return class_name, method_name
 
 def get_get_object_info(ins_output):
+    """ use for iget-object & sget-object """
     method_code = ins_output.split(', ')[-1]
     m = re.match('^L([^;]*);->([^ ]*)', method_code)
     class_name, attribute_name = m.group(1), m.group(2)
@@ -135,6 +136,7 @@ def print_backtrace_result(result, decompile=1):
         _print_backtrace_result(result, 0);
 
 def backtrace_variable(method, ins_addr, var):
+    # get local vars & param vars passed in
     mvar_list_local, mvar_list_param = get_method_variable(method.get_method())
 
     # the last local variable of a non-static method is 'this'
@@ -147,21 +149,34 @@ def backtrace_variable(method, ins_addr, var):
     result = None
     caller_stack = []
     if var in mvar_list_param:
+        # escape for regular expression
         descriptor = method.get_method().get_descriptor().replace('(', '\(').replace(')', '\)').replace('[', '\[').replace(']', '\]')
         print WARN_MSG_PREFIX + "\033[1;30mFound {} in param list\033[0m".format(var)
+
+        # find caller path
         caller_paths = dx.tainted_packages.search_methods(method.get_method().get_class_name(), method.get_method().get_name(), descriptor)
+
+        # find no caller
         if len(caller_paths) == 0:
             print WARN_MSG_PREFIX + "\033[1;30mNO ONE CALL YOU\033[0m"
             return {"ins": "null"}
+
+        # find the paths
         for path in caller_paths:
+            # get analyzed method
             analyzed_method = get_analyzed_method_from_path(path)
             print WARN_MSG_PREFIX + analyzed_method.get_method().get_class_name(), analyzed_method.get_method().get_name(), analyzed_method.get_method().get_descriptor()
+
             # get variable name
             target_ins = get_instruction_by_idx(analyzed_method, path.get_idx())
             print WARN_MSG_PREFIX + target_ins.get_name(), target_ins.get_output()
             print WARN_MSG_PREFIX, get_instruction_variable(target_ins)
+
+            # decide the target var index in the instruction
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
+
+            # invoke-direct / invoke-virtual will pass one more param as instance
             if target_ins.get_name() == 'invoke-direct' or target_ins.get_name() == 'invoke-virtual' or target_ins.get_name() == 'invoke-direct/range':
                 target_var = target_var_list[target_param_index + 1]
             elif target_ins.get_name() == 'invoke-static':
@@ -169,8 +184,11 @@ def backtrace_variable(method, ins_addr, var):
             else:
                 print WARN_MSG_PREFIX + '\033[1;30mNOT IMPLEMENT YET: {}\033[0m'.format(target_ins.get_name())
             print WARN_MSG_PREFIX + "\033[1;30mFind {}\033[0m".format(target_var)
-            #
-            return backtrace_variable(analyzed_method, path.get_idx(), target_var)
+
+            # recursive find the result
+            result = backtrace_variable(analyzed_method, path.get_idx(), target_var)
+            if result is not None:
+                return result
 
     # prepare regular expression
     re_var = re.compile(var + '([^0-9a-zA-Z_]|$)')
