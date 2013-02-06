@@ -30,6 +30,11 @@ def read_apk(apk_name):
 
     return a, d, dx
 
+def write_log_to_file(filename, string):
+    f = open(filename, 'a')
+    f.write(string)
+    f.close()
+
 def get_method_variable(method):
     """ Return local variable list and parameter list """
     # get number of local variables
@@ -227,7 +232,7 @@ def backtrace_variable(method, ins_addr, var):
         if target_block is not None:
             break
 
-    #
+    # main algorithm
     current_block = target_block
     address_list  = list(block_address_list[current_block])
     address_list  = [ addr for addr in address_list if addr < ins_addr ]
@@ -236,34 +241,44 @@ def backtrace_variable(method, ins_addr, var):
     traced_block[current_block] = True
     while True:
         instructions  = current_block.get_instructions()
+
+        # start backtracing
         for i in range(ins_index_in_block - 1, -1, -1):
             idx = address_list.pop()
             ins = instructions[i]
-            # print
             print WARN_MSG_PREFIX + "\033[1;34m{:04x}\033[0m {:20s} {}".format(idx, ins.get_name(), ins.get_output())
+
+            # match the instruction to search the target var
             if re_var.match(ins.get_output()):
                 if ins.get_name() == "sget-object" or ins.get_name() == "new-instance" or ins.get_name() == "const-string" or ins.get_name() == "const" or ins.get_name() == "const/4" or ins.get_name() == "const/16":
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
                 elif ins.get_name() == "iget-object" or ins.get_name() == "aget-object" or ins.get_name() == "move" or ins.get_name() == "move-object" or ins.get_name() == "move-object/from16":
+                    print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
+
+                    # check target var is the first var in the instruction
                     if ivar_list[0] == var:
                         result = {"ins": ins}
+
+                        # backtrace other var in the instruction
                         for i in range(1, len(ivar_list)):
                             ivar = ivar_list[i]
                             print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                             result[ivar] = backtrace_variable(method, idx, ivar)
                         return result
                     else:
-                        print ERROR_MSG_PREFIX + "ERROR", ins.get_name(), ins.get_output()
+                        print ERROR_MSG_PREFIX + "ERROR ", ins.get_name(), ins.get_output()
                 elif ins.get_name() == "move-result-object":
+                    print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
+
                     # get previous instruction
                     i -= 1
                     ins = instructions[i]
                     idx = address_list.pop()
-                    #
-                    print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
+
+                    # backtrace all other vars in the instruction
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
@@ -283,6 +298,7 @@ def backtrace_variable(method, ins_addr, var):
                     continue
                 else:
                     print WARN_MSG_PREFIX + "\033[0;31m\t\tWhat? Instruction No Define:{} {}\033[0m".format(ins.get_name(), ins.get_output())
+                    write_log_to_file('command_not_found', "{} / {}\n".format(ins.get_name(), ins.get_output()))
 
         # result not found in current_block
         # push previous blocks to stack
