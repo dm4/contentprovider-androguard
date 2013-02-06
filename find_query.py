@@ -251,11 +251,11 @@ def backtrace_variable(method, ins_addr, var):
 
             # match the instruction to search the target var
             if re_var.match(ins.get_output()):
-                if ins.get_name() in ("sget-object", "new-instance", "const-string", "const", "const/4", "const/16"):
+                if ins.get_name() in ("sget-object", "new-instance", "const-string", "const", "const/4", "const/16", "const-class"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif ins.get_name() in ("iget-object", "aget-object", "move", "move-object", "move-object/from16", "new-array"):
+                elif ins.get_name() in ("iget-object", "aget-object", "move", "move-object", "move-object/from16", "new-array", "int-to-long", "iget"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
@@ -333,7 +333,8 @@ def backtrace_variable(method, ins_addr, var):
                         param_index += 1
 
                     return result
-                elif ins.get_name() in ("check-cast", "if-eqz", "if-nez", "if-lt", "if-gez"):
+                # aput-object v0, v1, v2 => v2[v1] = v0
+                elif ins.get_name() in ("check-cast", "if-eqz", "if-nez", "if-lt", "if-gez", "aput-object"):
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
