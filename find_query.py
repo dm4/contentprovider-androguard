@@ -231,14 +231,11 @@ def backtrace_variable(method, ins_addr, var):
     current_block = target_block
     address_list  = list(block_address_list[current_block])
     address_list  = [ addr for addr in address_list if addr < ins_addr ]
-    depth = {}
-    depth[current_block] = 0
     stack  = []
     traced_block = {}
     traced_block[current_block] = True
     while True:
         instructions  = current_block.get_instructions()
-        current_depth = depth[current_block]
         for i in range(ins_index_in_block - 1, -1, -1):
             idx = address_list.pop()
             ins = instructions[i]
@@ -294,7 +291,6 @@ def backtrace_variable(method, ins_addr, var):
         for block in current_block.get_prev():
             if not traced_block.has_key(block[2]):
                 stack.append(block[2])
-                depth[block[2]] = current_depth + 1
                 traced_block[block[2]] = True
 
         # pop one block to process
