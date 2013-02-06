@@ -255,7 +255,7 @@ def backtrace_variable(method, ins_addr, var):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif ins.get_name() in ("iget-object", "aget-object", "move", "move-object", "move-object/from16"):
+                elif ins.get_name() in ("iget-object", "aget-object", "move", "move-object", "move-object/from16", "new-array"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
@@ -271,7 +271,7 @@ def backtrace_variable(method, ins_addr, var):
                         return result
                     else:
                         print ERROR_MSG_PREFIX + "ERROR ", ins.get_name(), ins.get_output()
-                elif ins.get_name() in ("move-result-object", "move-result-wide"):
+                elif ins.get_name() in ("move-result-object", "move-result-wide", "move-result"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
 
                     # get previous instruction
@@ -334,7 +334,7 @@ def backtrace_variable(method, ins_addr, var):
 
                     return result
                 elif ins.get_name() in ("check-cast", "if-eqz", "if-nez", "if-lt", "if-gez"):
-                    print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
+                    print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
                     print WARN_MSG_PREFIX + "\033[0;31m\t\tWhat? Instruction No Define:{} {}\033[0m".format(ins.get_name(), ins.get_output())
