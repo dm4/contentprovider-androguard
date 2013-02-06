@@ -63,9 +63,9 @@ def get_instruction_variable(instruction):
 def get_invoke_info(ins_output):
     """ Will return class_name, method_name """
     method_code = ins_output.split(', ')[-1]
-    m = re.match('^L([^;]*);(?:->(.*)\()?', method_code)
-    class_name, method_name = m.group(1), m.group(2)
-    return class_name, method_name
+    m = re.match('^L([^;]*);->(.*)\((.*)\)', method_code)
+    class_name, method_name, param_string = m.group(1), m.group(2), m.group(3)
+    return class_name, method_name, param_string.split(' ')
 
 def get_get_object_info(ins_output):
     """ use for iget-object & sget-object """
@@ -100,14 +100,14 @@ def _print_backtrace_result_decompile(result):
     else:
         param_list = get_instruction_variable(ins)
         if ins.get_name() == "invoke-static":
-            class_name, method_name = get_invoke_info(ins.get_output())
+            class_name, method_name = get_invoke_info(ins.get_output())[0:2]
             r = "{}.{}(".format(class_name, method_name)
             for param in param_list:
                 r += _print_backtrace_result_decompile(result[param])
             r += ")"
             return r
         elif ins.get_name() == "invoke-virtual" or ins.get_name() == "invoke-direct":
-            class_name, method_name = get_invoke_info(ins.get_output())
+            class_name, method_name = get_invoke_info(ins.get_output())[0:2]
             instance = param_list.pop(0)
             r = "{}.{}(".format(_print_backtrace_result_decompile(result[instance]), method_name)
             add_comma = False
@@ -122,7 +122,8 @@ def _print_backtrace_result_decompile(result):
         elif ins.get_name() == "const-string" or ins.get_name() == "const/4":
             return ins.get_output().split(', ')[-1]
         elif ins.get_name() == "new-instance":
-            class_name, method_name = get_invoke_info(ins.get_output())
+            # trim the Lclass_name;
+            class_name = ins.get_output().split(', ')[-1][1:-1]
             return "new {}".format(class_name)
         elif ins.get_name() == "iget-object":
             class_name, attribute_name = get_get_object_info(ins.get_output())
@@ -270,7 +271,7 @@ def backtrace_variable(method, ins_addr, var):
                         return result
                     else:
                         print ERROR_MSG_PREFIX + "ERROR ", ins.get_name(), ins.get_output()
-                elif ins.get_name() == "move-result-object":
+                elif ins.get_name() == "move-result-object" or ins.get_name() == "move-result-wide":
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
 
                     # get previous instruction
@@ -279,22 +280,61 @@ def backtrace_variable(method, ins_addr, var):
                     idx = address_list.pop()
 
                     # backtrace all other vars in the instruction
+                    #     - aware: long(J)/double(D) will have two register
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
-                    for ivar in ivar_list:
+
+                    param_list = get_invoke_info(ins.get_output())[2]
+                    if ins.get_name() == 'invoke-static':
+                        ivar_index = 0
+                    else:
+                        ivar_index = 1
+                        ivar = ivar_list[0]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar)
+
+                    param_index = 0
+                    while ivar_index < len(ivar_list):
+                        ivar = ivar_list[ivar_index]
+                        print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
+                        result[ivar] = backtrace_variable(method, idx, ivar)
+                        if param_list[param_index] in ('J', 'D'):
+                            ivar_index += 2
+                        else:
+                            ivar_index += 1
+                        param_index += 1
+
                     return result
                 elif ins.get_name() == "invoke-direct" or ins.get_name() == "invoke-virtual" or ins.get_name() == "invoke-static" or ins.get_name() == "invoke-direct/range":
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
-                    print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
-                    for ivar in ivar_list:
+
+                    # backtrace all other vars in the instruction
+                    #     - aware: long(J)/double(D) will have two register
+                    param_list = get_invoke_info(ins.get_output())[2]
+                    if ins.get_name() == 'invoke-static':
+                        ivar_index = 0
+                    else:
+                        ivar_index = 1
+                        ivar = ivar_list[0]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar)
+
+                    param_index = 0
+                    while ivar_index < len(ivar_list):
+                        ivar = ivar_list[ivar_index]
+                        print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
+                        result[ivar] = backtrace_variable(method, idx, ivar)
+                        if param_list[param_index] in ('J', 'D'):
+                            ivar_index += 2
+                        else:
+                            ivar_index += 1
+                        param_index += 1
+
                     return result
                 elif ins.get_name() == "check-cast" or ins.get_name() == 'if-eqz' or ins.get_name() == 'if-nez' or ins.get_name() == 'if-lt' or ins.get_name() == 'if-gez':
+                    print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
                     print WARN_MSG_PREFIX + "\033[0;31m\t\tWhat? Instruction No Define:{} {}\033[0m".format(ins.get_name(), ins.get_output())
