@@ -135,8 +135,12 @@ def _print_backtrace_result_decompile(result):
                     j += 1
             r += ")"
             return r
-        elif ins.get_name() == "const-string" or ins.get_name() == "const/4":
+        elif ins.get_name() in ("const-string", "const/4"):
             return ins.get_output().split(', ')[-1]
+        elif ins.get_name() == "const-class":
+            # trim the Lclass_name;
+            class_name = ins.get_output().split(', ')[-1][1:-1]
+            return "{}".format(class_name)
         elif ins.get_name() == "new-instance":
             # trim the Lclass_name;
             class_name = ins.get_output().split(', ')[-1][1:-1]
