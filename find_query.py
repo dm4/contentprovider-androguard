@@ -185,11 +185,10 @@ def backtrace_variable(method, ins_addr, var):
             # decide the target var index in the instruction
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
-
             # invoke-direct / invoke-virtual will pass one more param as instance
-            if target_ins.get_name() == 'invoke-direct' or target_ins.get_name() == 'invoke-virtual' or target_ins.get_name() == 'invoke-direct/range':
+            if target_ins.get_name() in ( 'invoke-direct', 'invoke-virtual', 'invoke-direct/range'):
                 target_var = target_var_list[target_param_index + 1]
-            elif target_ins.get_name() == 'invoke-static':
+            elif target_ins.get_name() in ('invoke-static', 'invoke-static/range'):
                 target_var = target_var_list[target_param_index]
             else:
                 print WARN_MSG_PREFIX + '\033[1;30mNOT IMPLEMENT YET: {}\033[0m'.format(target_ins.get_name())
