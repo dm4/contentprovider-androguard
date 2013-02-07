@@ -53,10 +53,14 @@ def get_method_variable(method):
 def get_instruction_variable(instruction):
     # opcode is invoke-xxx/range
     if instruction.get_name()[-6:] == '/range':
-        var_from, var_to = instruction.get_output().split(', ')[0].split(' ... ')
-        var_from = int(var_from[1:])
-        var_to   = int(var_to[1:])
-        return [ "v{:d}".format(i) for i in range(var_from, var_to + 1) ]
+        var_str= instruction.get_output().split(', ')[0]
+        if var_str.find(" ... ") != -1:
+            var_from, var_to = instruction.get_output().split(', ')[0].split(' ... ')
+            var_from = int(var_from[1:])
+            var_to   = int(var_to[1:])
+            return [ "v{:d}".format(i) for i in range(var_from, var_to + 1) ]
+        else:
+            return [ var_str ]
     else:
         return [ var for var in instruction.get_output().split(', ') if var[0] == 'v' ]
 
@@ -251,7 +255,7 @@ def backtrace_variable(method, ins_addr, var):
 
             # match the instruction to search the target var
             if re_var.match(ins.get_output()):
-                if ins.get_name() in ("sget-object", "new-instance", "const-string", "const", "const/4", "const/16"):
+                if ins.get_name() in ("sget-object", "const-class", "new-instance", "const-string", "const", "const/4", "const/16"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
