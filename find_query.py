@@ -53,10 +53,14 @@ def get_method_variable(method):
 def get_instruction_variable(instruction):
     # opcode is invoke-xxx/range
     if instruction.get_name()[-6:] == '/range':
-        var_from, var_to = instruction.get_output().split(', ')[0].split(' ... ')
-        var_from = int(var_from[1:])
-        var_to   = int(var_to[1:])
-        return [ "v{:d}".format(i) for i in range(var_from, var_to + 1) ]
+        var_str= instruction.get_output().split(', ')[0]
+        if var_str.find(" ... ") != -1:
+            var_from, var_to = instruction.get_output().split(', ')[0].split(' ... ')
+            var_from = int(var_from[1:])
+            var_to   = int(var_to[1:])
+            return [ "v{:d}".format(i) for i in range(var_from, var_to + 1) ]
+        else:
+            return [ var_str ]
     else:
         return [ var for var in instruction.get_output().split(', ') if var[0] == 'v' ]
 
@@ -65,7 +69,7 @@ def get_invoke_info(ins_output):
     method_code = ins_output.split(', ')[-1]
     m = re.match('^L([^;]*);->(.*)\((.*)\)', method_code)
     class_name, method_name, param_string = m.group(1), m.group(2), m.group(3)
-    return class_name, method_name, param_string.split(' ')
+    return class_name, method_name, [] if param_string == "" else param_string.split(' ')
 
 def get_get_object_info(ins_output):
     """ use for iget-object & sget-object """
@@ -100,27 +104,43 @@ def _print_backtrace_result_decompile(result):
     else:
         param_list = get_instruction_variable(ins)
         if ins.get_name() == "invoke-static":
-            class_name, method_name = get_invoke_info(ins.get_output())[0:2]
+            class_name, method_name, method_param_list = get_invoke_info(ins.get_output())
             r = "{}.{}(".format(class_name, method_name)
-            for param in param_list:
+            j = 0
+            for i in range(0, len(method_param_list)):
+                param = param_list[j]
                 r += _print_backtrace_result_decompile(result[param])
+                if method_param_list[i] in ('J', 'D'):
+                    j += 2
+                else:
+                    j += 1
             r += ")"
             return r
         elif ins.get_name() == "invoke-virtual" or ins.get_name() == "invoke-direct":
-            class_name, method_name = get_invoke_info(ins.get_output())[0:2]
+            class_name, method_name, method_param_list = get_invoke_info(ins.get_output())
             instance = param_list.pop(0)
             r = "{}.{}(".format(_print_backtrace_result_decompile(result[instance]), method_name)
             add_comma = False
-            for param in param_list:
+            j = 0
+            for i in range(0, len(method_param_list)):
+                param = param_list[j]
                 if add_comma:
                     r += ", "
                 else:
                     add_comma = True
                 r += _print_backtrace_result_decompile(result[param])
+                if method_param_list[i] in ('J', 'D'):
+                    j += 2
+                else:
+                    j += 1
             r += ")"
             return r
-        elif ins.get_name() == "const-string" or ins.get_name() == "const/4":
+        elif ins.get_name() in ("const-string", "const/4"):
             return ins.get_output().split(', ')[-1]
+        elif ins.get_name() == "const-class":
+            # trim the Lclass_name;
+            class_name = ins.get_output().split(', ')[-1][1:-1]
+            return "{}".format(class_name)
         elif ins.get_name() == "new-instance":
             # trim the Lclass_name;
             class_name = ins.get_output().split(', ')[-1][1:-1]
@@ -181,11 +201,10 @@ def backtrace_variable(method, ins_addr, var):
             # decide the target var index in the instruction
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
-
             # invoke-direct / invoke-virtual will pass one more param as instance
-            if target_ins.get_name() == 'invoke-direct' or target_ins.get_name() == 'invoke-virtual' or target_ins.get_name() == 'invoke-direct/range':
+            if target_ins.get_name() in ( 'invoke-direct', 'invoke-virtual', 'invoke-direct/range'):
                 target_var = target_var_list[target_param_index + 1]
-            elif target_ins.get_name() == 'invoke-static':
+            elif target_ins.get_name() in ('invoke-static', 'invoke-static/range'):
                 target_var = target_var_list[target_param_index]
             else:
                 print WARN_MSG_PREFIX + '\033[1;30mNOT IMPLEMENT YET: {}\033[0m'.format(target_ins.get_name())
@@ -251,7 +270,7 @@ def backtrace_variable(method, ins_addr, var):
 
             # match the instruction to search the target var
             if re_var.match(ins.get_output()):
-                if ins.get_name() in ("sget-object", "new-instance", "const-string", "const", "const/4", "const/16"):
+                if ins.get_name() in ("sget-object", "const-class", "new-instance", "const-string", "const", "const/4", "const/16"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
