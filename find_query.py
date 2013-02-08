@@ -90,10 +90,15 @@ def _print_backtrace_result(result, depth):
     if type(ins) == type('str'):
         print OK_MSG_PREFIX + indent + ins
     elif type(ins) == type([]):
-        print "----------" + "Multi Path" + "----------"
+        print indent + "----------" + "Multi Path Start" + "----------"
+        is_first = True
         for ins_dict in ins:
+            if is_first:
+                is_first = False
+            else:
+                print indent + "---"
             _print_backtrace_result(ins_dict, depth + 1)
-            print "----------" + "Multi Path" + "----------"
+        print indent + "----------" + "Multi Path Done" + "----------"
     elif isinstance(ins, Instruction):
         print OK_MSG_PREFIX + indent + "{:16s}{}".format(ins.get_name(), ins.get_output())
         var_list = [ var for var in result.keys() if var != 'ins' ]
@@ -188,12 +193,35 @@ def backtrace_variable(method, ins_addr, var):
         descriptor = method.get_method().get_descriptor().replace('(', '\(').replace(')', '\)').replace('[', '\[').replace(']', '\]')
         print WARN_MSG_PREFIX + "\033[1;30mFound {} in param list\033[0m".format(var)
 
-        # find caller path
-        caller_paths = dx.tainted_packages.search_methods(method.get_method().get_class_name(), method.get_method().get_name(), descriptor)
+        # get all subclasses
+        all_subclasses = []
+        queue = []
+        queue.append(method.get_method().get_class_name())
+        while len(queue) > 0:
+            c = queue.pop()
+            if c in all_subclasses:
+                continue
+            else:
+                all_subclasses.append(c)
+                if class_hierarchy.has_key(c):
+                    for subc in class_hierarchy[c]:
+                        queue.append(subc)
+        print "all_subclasses: " + str(all_subclasses)
+
+        # find all caller path
+        caller_paths = []
+        for c in all_subclasses:
+            for path in dx.tainted_packages.search_methods(c, method.get_method().get_name(), descriptor):
+                # skip self call loop
+                src_class_name, src_method_name, src_descriptor = path.get_src(cm)
+                if src_class_name == c and src_method_name == method.get_method().get_name() and src_descriptor == method.get_method().get_descriptor():
+                    continue
+                caller_paths.append(path)
 
         # find no caller
         if len(caller_paths) == 0:
             print WARN_MSG_PREFIX + "\033[0;31mNO ONE CALL YOU\033[0m"
+            write_log_to_file('no_one_call_you', "{} / {} / {}\n".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor()))
             return {"ins": "null"}
 
         # find the paths
@@ -406,11 +434,26 @@ def get_instruction_by_idx(method, target_idx):
                 return ins
             idx += ins.get_length()
 
+def construct_class_hierarchy():
+    result = {}
+    all_classes = d.get_classes()
+    for c in all_classes:
+        class_name = c.get_name()
+        superclass_name = c.get_superclassname()
+        if not result.has_key(superclass_name):
+            result[superclass_name] = []
+        result[superclass_name].append(class_name)
+    return result
+
 if __name__ == "__main__" :
     # load apk and analyze
 #    a, d, dx = read_apk("apk/tunein.player.apk")
     a, d, dx = read_apk("apk/com.texty.sms-1.apk")
     cm = d.get_class_manager()
+
+    # construct class hierarchy
+    class_hierarchy = construct_class_hierarchy()
+    print class_hierarchy
 
     # search ContentResolver.query()
     query_paths = dx.tainted_packages.search_methods("^Landroid/content/ContentResolver;$", "^query$", ".")
