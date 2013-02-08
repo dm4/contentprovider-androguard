@@ -377,7 +377,8 @@ def get_instruction_by_idx(method, target_idx):
 
 if __name__ == "__main__" :
     # load apk and analyze
-    a, d, dx = read_apk("apk/tunein.player.apk")
+#    a, d, dx = read_apk("apk/tunein.player.apk")
+    a, d, dx = read_apk("apk/com.texty.sms-1.apk")
     cm = d.get_class_manager()
 
     # search ContentResolver.query()
