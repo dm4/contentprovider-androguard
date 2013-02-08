@@ -6,6 +6,7 @@ from androguard.decompiler.dad import decompile
 import androlyze
 from androlyze import *
 import os, re
+import json
 
 apk_session_dir = "session/"
 ERROR_MSG_PREFIX = "\033[1;31m[!]\033[m "
@@ -444,6 +445,138 @@ def construct_class_hierarchy():
             result[superclass_name] = []
         result[superclass_name].append(class_name)
     return result
+
+def get_intentclass_from_backtrace_result(result):
+    json_result = _get_intentclass_from_backtrace_result(result)
+    if json_result == "null":
+        json_result = "{}"
+    else:
+        json_result = "{" + json_result[:-1] + "}"
+    return json.loads(json_result)
+
+def _get_intentclass_from_backtrace_result(result):
+    """
+        return {
+            action:,
+            package:,
+            class:
+        }
+    """
+    ins = result['ins']
+    if type(ins) == type('str'):
+        return ins
+    elif isinstance(ins, Instruction):
+        var_list = get_instruction_variable(ins)
+        if ins.get_name() in ("invoke-virtual", "invoke-direct"):
+            _, method_name, method_param_list = get_invoke_info(ins.get_output())
+            r = ""
+            if method_name == "setPackage":
+                r = '"package":"'
+                r += _get_intentclass_from_backtrace_result(result[var_list[-1]])
+                r += '",'
+            elif method_name == "setAction":
+                r = '"action":"'
+                r += _get_intentclass_from_backtrace_result(result[var_list[-1]])
+                r += '",'
+            elif method_name == "setClassName" and method_param_list[0] == "Ljava/lang/String;" and method_param_list[1] == "Ljava/lang/String;":
+                r = '"package":"'
+                r += _get_intentclass_from_backtrace_result(result[var_list[-2]])
+                r += '",'
+                r += '"class":"'
+                r += _class_to_java_format(_get_intentclass_from_backtrace_result(result[var_list[-1]]))
+                r += '",'
+            elif method_name == "<init>" and len(method_param_list) > 0 and method_param_list[-1] == "Ljava/lang/String;":
+                r = '"action":"'
+                r += _get_intentclass_from_backtrace_result(result[var_list[-1]])
+                r += '",'
+            elif method_name == "<init>" and len(method_param_list) > 1 and method_param_list[-1] == "Ljava/lang/Class;":
+                r = '"class":"'
+                r += _class_to_java_format(_get_intentclass_from_backtrace_result(result[var_list[-1]]))
+                r += '",'
+            r += _get_intentclass_from_backtrace_result(result[var_list[0]])
+            return r
+        elif ins.get_name() in ("const-string", "const-class"):
+            return ins.get_output().split(', ')[-1][1:-1]
+        else:
+            return ""
+    else:
+        return "null"
+
+def _class_to_java_format(class_name):
+    re_var = re.compile('^L.*;$')
+    if not re_var.match(class_name):
+        class_name = 'L' + class_name.replace(".","/") + ';'
+    return '{}'.format(class_name)
+
+def find_service_method(json_result):
+    json_keys_list = json_result.keys()
+    class_name = None
+    if json_result.has_key("class"):
+        class_name = json_result['class'].encode()
+    elif json_result.has_key("action"):
+        action_name = json_result['action'].encode()
+        target_method = None
+
+        xml = a.xml['AndroidManifest.xml']
+        for item in xml.getElementsByTagName("service") :
+            for i in item.getElementsByTagName("action"):
+                if action_name == i.getAttribute("android:name"):
+                    class_name = _class_to_java_format(item.getAttribute("android:name"))
+                    break
+    else:
+        return "None"
+
+    for method in d.get_methods():
+        if method.get_class_name() == class_name:
+            if method.get_name() == "onHandleIntent":
+                return method
+            elif method.get_name() == "onStartCommand":
+                return method
+            else:
+                continue
+        else:
+            continue
+
+def link():
+    paths = dx.tainted_packages.search_methods("^Landroid/content/Context;$", "^startService$", "^\(Landroid/content/Intent;\)Landroid/content/ComponentName;$")
+
+    service_result = {}
+    for i in range(0, len(paths)):
+#     for i in range(3, 4):
+#     for path in paths:
+        path = paths[i]
+        print OK_MSG_PREFIX + "path {}".format(i)
+        # get analyzed method
+        analyzed_method = get_analyzed_method_from_path(path)
+        method = analyzed_method.get_method()
+
+        # print source class & method name
+        print OK_MSG_PREFIX + "Class  {0}".format(method.get_class_name())
+        print OK_MSG_PREFIX + "Method {0}".format(method.get_name())
+        print OK_MSG_PREFIX + "Offset 0x{0:04x}".format(path.get_idx())
+
+        # get variable name
+        target_ins = get_instruction_by_idx(analyzed_method, path.get_idx())
+        intent_variable = get_instruction_variable(target_ins)[1]
+
+        print WARN_MSG_PREFIX + target_ins.get_name(), target_ins.get_output()
+        print WARN_MSG_PREFIX, get_instruction_variable(target_ins)
+
+        print WARN_MSG_PREFIX, intent_variable
+        result = backtrace_variable(analyzed_method, path.get_idx(), intent_variable)
+        print_backtrace_result(result, 0)
+        print_backtrace_result(result)
+        json_result = get_intentclass_from_backtrace_result(result)
+
+        m = find_service_method(json_result)
+        if str(type(m)) == "<type 'instance'>":
+            if "{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor()) not in service_result.keys():
+                service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())] = [{"idx" : path.get_idx(), "mx" : analyzed_method}]
+            else:
+                service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())].append({"idx" : path.get_idx(), "mx" : analyzed_method})
+
+        print WARN_MSG_PREFIX + "--------------------------------------------------"
+    return service_result
 
 if __name__ == "__main__" :
     # load apk and analyze
