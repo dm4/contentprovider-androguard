@@ -164,7 +164,7 @@ def backtrace_variable(method, ins_addr, var):
 
         # find no caller
         if len(caller_paths) == 0:
-            print WARN_MSG_PREFIX + "\033[1;30mNO ONE CALL YOU\033[0m"
+            print WARN_MSG_PREFIX + "\033[0;31mNO ONE CALL YOU\033[0m"
             return {"ins": "null"}
 
         # find the paths
@@ -188,7 +188,7 @@ def backtrace_variable(method, ins_addr, var):
             elif target_ins.get_name() == 'invoke-static':
                 target_var = target_var_list[target_param_index]
             else:
-                print WARN_MSG_PREFIX + '\033[1;30mNOT IMPLEMENT YET: {}\033[0m'.format(target_ins.get_name())
+                print WARN_MSG_PREFIX + '\033[0;31mNOT IMPLEMENT YET: {}\033[0m'.format(target_ins.get_name())
             print WARN_MSG_PREFIX + "\033[1;30mFind {}\033[0m".format(target_var)
 
             # recursive find the result
@@ -398,6 +398,7 @@ if __name__ == "__main__" :
         # print source class & method name
         print "\tClass  {0}".format(method.get_class_name())
         print "\tMethod {0}".format(method.get_name())
+        print "\tDesc   {0}".format(method.get_descriptor())
         print "\tOffset 0x{0:04x}".format(path.get_idx())
 
         # skip built-in library
@@ -411,5 +412,5 @@ if __name__ == "__main__" :
 
         # backtrace variable
         result = backtrace_variable(analyzed_method, path.get_idx(), uri_variable)
-        print_backtrace_result(result)
         print_backtrace_result(result, 0)
+#        print_backtrace_result(result)
