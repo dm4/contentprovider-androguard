@@ -183,7 +183,7 @@ def backtrace_variable(method, ins_addr, var):
             target_param_index = mvar_list_param.index(var)
 
             # invoke-direct / invoke-virtual will pass one more param as instance
-            if target_ins.get_name() == 'invoke-direct' or target_ins.get_name() == 'invoke-virtual' or target_ins.get_name() == 'invoke-direct/range':
+            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-direct/range"):
                 target_var = target_var_list[target_param_index + 1]
             elif target_ins.get_name() == 'invoke-static':
                 target_var = target_var_list[target_param_index]
