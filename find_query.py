@@ -89,19 +89,25 @@ def _print_backtrace_result(result, depth):
     ins = result["ins"]
     if type(ins) == type('str'):
         print OK_MSG_PREFIX + indent + ins
-    else:
+    elif type(ins) == type([]):
+        print "----------" + "Multi Path" + "----------"
+        for ins_dict in ins:
+            _print_backtrace_result(ins_dict, depth + 1)
+            print "----------" + "Multi Path" + "----------"
+    elif isinstance(ins, Instruction):
         print OK_MSG_PREFIX + indent + "{:16s}{}".format(ins.get_name(), ins.get_output())
-    for var in result.keys():
-        if var == 'ins':
-            continue
-        print OK_MSG_PREFIX + indent + var
-        _print_backtrace_result(result[var], depth + 1)
+        var_list = [ var for var in result.keys() if var != 'ins' ]
+        for var in var_list:
+            print OK_MSG_PREFIX + indent + var
+            _print_backtrace_result(result[var], depth + 1)
+    else:
+        print "Parsing Error: " + str(ins)
 
 def _print_backtrace_result_decompile(result):
     ins = result["ins"]
     if type(ins) == type('str'):
         return ins
-    else:
+    elif isinstance(ins, Instruction):
         param_list = get_instruction_variable(ins)
         if ins.get_name() == "invoke-static":
             class_name, method_name, method_param_list = get_invoke_info(ins.get_output())
@@ -154,6 +160,9 @@ def _print_backtrace_result_decompile(result):
             r = "{}.{}".format(class_name, attribute_name)
             return r
         return "{} {}".format(ins.get_name(), ins.get_output())
+    else:
+        print "Parsing Error!"
+        return "PARSE_ERROR"
 
 def print_backtrace_result(result, decompile=1):
     if decompile == 1:
@@ -188,6 +197,8 @@ def backtrace_variable(method, ins_addr, var):
             return {"ins": "null"}
 
         # find the paths
+        result = {}
+        result["ins"] = []
         for path in caller_paths:
             # get analyzed method
             analyzed_method = get_analyzed_method_from_path(path)
@@ -211,9 +222,10 @@ def backtrace_variable(method, ins_addr, var):
             print WARN_MSG_PREFIX + "\033[1;30mFind {}\033[0m".format(target_var)
 
             # recursive find the result
-            result = backtrace_variable(analyzed_method, path.get_idx(), target_var)
-            if result is not None:
-                return result
+            r = backtrace_variable(analyzed_method, path.get_idx(), target_var)
+            if r is not None:
+                result["ins"].append(r)
+        return result
 
     # prepare regular expression
     re_var = re.compile(var + '([^0-9a-zA-Z_]|$)')
