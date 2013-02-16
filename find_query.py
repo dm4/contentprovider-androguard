@@ -176,7 +176,7 @@ def print_backtrace_result(result, decompile=1):
     else:
         _print_backtrace_result(result, 0);
 
-def backtrace_variable(method, ins_addr, var):
+def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
     # get local vars & param vars passed in
     mvar_list_local, mvar_list_param = get_method_variable(method.get_method())
 
@@ -219,6 +219,14 @@ def backtrace_variable(method, ins_addr, var):
                     continue
                 caller_paths.append(path)
 
+        # add link from intent / service
+        if intent_service_link is not None:
+            intent_service_key = "{} {} {}".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor())
+            if intent_service_link.has_key(intent_service_key):
+                for path in intent_service_link[intent_service_key]:
+                    print "Found Path From Link"
+                    caller_paths.append(path)
+
         # find no caller
         if len(caller_paths) == 0:
             print WARN_MSG_PREFIX + "\033[0;31mNO ONE CALL YOU\033[0m"
@@ -250,10 +258,17 @@ def backtrace_variable(method, ins_addr, var):
                 print WARN_MSG_PREFIX + '\033[0;31mNOT IMPLEMENT YET: {}\033[0m'.format(target_ins.get_name())
             print WARN_MSG_PREFIX + "\033[1;30mFind {}\033[0m".format(target_var)
 
+            # print
+            src_class_name, src_method_name, src_descriptor = path.get_src(cm)
+            print "Want {}, From {} {} {} To {} {} {}, Find {}".format(var, method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor(), src_class_name, src_method_name, src_descriptor, target_var)
+
             # recursive find the result
-            r = backtrace_variable(analyzed_method, path.get_idx(), target_var)
+            r = backtrace_variable(analyzed_method, path.get_idx(), target_var, enable_multi_caller_path)
             if r is not None:
-                result["ins"].append(r)
+                if enable_multi_caller_path:
+                    result["ins"].append(r)
+                else:
+                    return r
         return result
 
     # prepare regular expression
@@ -327,7 +342,7 @@ def backtrace_variable(method, ins_addr, var):
                         for i in range(1, len(ivar_list)):
                             ivar = ivar_list[i]
                             print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
-                            result[ivar] = backtrace_variable(method, idx, ivar)
+                            result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
                         return result
                     else:
                         print ERROR_MSG_PREFIX + "ERROR ", ins.get_name(), ins.get_output()
@@ -352,13 +367,13 @@ def backtrace_variable(method, ins_addr, var):
                         ivar_index = 1
                         ivar = ivar_list[0]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
-                        result[ivar] = backtrace_variable(method, idx, ivar)
+                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
 
                     param_index = 0
                     while ivar_index < len(ivar_list):
                         ivar = ivar_list[ivar_index]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
-                        result[ivar] = backtrace_variable(method, idx, ivar)
+                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
                         if param_list[param_index] in ('J', 'D'):
                             ivar_index += 2
                         else:
@@ -379,13 +394,13 @@ def backtrace_variable(method, ins_addr, var):
                         ivar_index = 1
                         ivar = ivar_list[0]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
-                        result[ivar] = backtrace_variable(method, idx, ivar)
+                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
 
                     param_index = 0
                     while ivar_index < len(ivar_list):
                         ivar = ivar_list[ivar_index]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
-                        result[ivar] = backtrace_variable(method, idx, ivar)
+                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
                         if param_list[param_index] in ('J', 'D'):
                             ivar_index += 2
                         else:
@@ -563,7 +578,7 @@ def link():
         print WARN_MSG_PREFIX, get_instruction_variable(target_ins)
 
         print WARN_MSG_PREFIX, intent_variable
-        result = backtrace_variable(analyzed_method, path.get_idx(), intent_variable)
+        result = backtrace_variable(analyzed_method, path.get_idx(), intent_variable, 0)
         print_backtrace_result(result, 0)
         print_backtrace_result(result)
         json_result = get_intentclass_from_backtrace_result(result)
@@ -571,9 +586,9 @@ def link():
         m = find_service_method(json_result)
         if str(type(m)) == "<type 'instance'>":
             if "{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor()) not in service_result.keys():
-                service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())] = [{"idx" : path.get_idx(), "mx" : analyzed_method}]
-            else:
-                service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())].append({"idx" : path.get_idx(), "mx" : analyzed_method})
+                service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())] = []
+#            service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())].append({"idx" : path.get_idx(), "mx" : analyzed_method})
+            service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())].append(path)
 
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return service_result
@@ -586,7 +601,12 @@ if __name__ == "__main__" :
 
     # construct class hierarchy
     class_hierarchy = construct_class_hierarchy()
-    print class_hierarchy
+#    print class_hierarchy
+
+    # construct intent / service link
+    intent_service_link = None
+    intent_service_link = link()
+    print intent_service_link
 
     # search ContentResolver.query()
     query_paths = dx.tainted_packages.search_methods("^Landroid/content/ContentResolver;$", "^query$", ".")
