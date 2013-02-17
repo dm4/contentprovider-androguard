@@ -47,7 +47,15 @@ def get_method_variable(method):
 
     # NOT SAVE CLASS OF PARAMS YET
     if params:
-        return [ "v{:d}".format(i) for i in range(0, nb - len(params)) ], [ "v{:d}".format(i) for i in range(nb - len(params), nb) ]
+        # check params J or D
+        # by atdog
+        num_params = 0
+        for p in params:
+            if p in ('J', 'D'):
+                num_params += 2
+            else:
+                num_params +=1
+        return [ "v{:d}".format(i) for i in range(0, nb - num_params) ], [ "v{:d}".format(i) for i in range(nb - num_params, nb) ]
     else :
         return [ "v{:d}".format(i) for i in range(0, nb) ], []
 
