@@ -342,6 +342,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
                         for i in range(1, len(ivar_list)):
                             ivar = ivar_list[i]
                             print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
+                            print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                             result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
                         return result
                     else:
@@ -367,12 +368,14 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
                         ivar_index = 1
                         ivar = ivar_list[0]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
+                        print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
 
                     param_index = 0
                     while ivar_index < len(ivar_list):
                         ivar = ivar_list[ivar_index]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
+                        print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
                         if param_list[param_index] in ('J', 'D'):
                             ivar_index += 2
@@ -394,12 +397,14 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
                         ivar_index = 1
                         ivar = ivar_list[0]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
+                        print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
 
                     param_index = 0
                     while ivar_index < len(ivar_list):
                         ivar = ivar_list[ivar_index]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
+                        print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
                         if param_list[param_index] in ('J', 'D'):
                             ivar_index += 2
