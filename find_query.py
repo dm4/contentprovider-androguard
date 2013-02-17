@@ -179,7 +179,7 @@ def print_backtrace_result(result, decompile=1):
 def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump_list = []):
     # check traced_vars
     global traced_vars
-    traced_key = "{} {} {} {} {}".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor(), ins_addr, var)
+    traced_key = "{} {} {} {} {} {}".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor(), ins_addr, var, enable_multi_caller_path)
     if traced_vars.has_key(traced_key):
         print "Read '{}' from traced_vars".format(traced_key)
         return traced_vars[traced_key]
@@ -362,9 +362,8 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                             result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
 
                         # save to traced_vars
-                        if enable_multi_caller_path:
-                            print "Write '{}' to traced_vars".format(traced_key)
-                            traced_vars[traced_key] = result
+                        print "Write '{}' to traced_vars".format(traced_key)
+                        traced_vars[traced_key] = result
 
                         return result
                     else:
@@ -405,9 +404,8 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                         param_index += 1
 
                     # save to traced_vars
-                    if enable_multi_caller_path:
-                        print "Write '{}' to traced_vars".format(traced_key)
-                        traced_vars[traced_key] = result
+                    print "Write '{}' to traced_vars".format(traced_key)
+                    traced_vars[traced_key] = result
 
                     return result
                 elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-static", "invoke-direct/range", "invoke-interface"):
@@ -438,9 +436,8 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                         param_index += 1
 
                     # save to traced_vars
-                    if enable_multi_caller_path:
-                        print "Write '{}' to traced_vars".format(traced_key)
-                        traced_vars[traced_key] = result
+                    print "Write '{}' to traced_vars".format(traced_key)
+                    traced_vars[traced_key] = result
 
                     return result
                 elif ins.get_name() in ("div-long/2addr"):
