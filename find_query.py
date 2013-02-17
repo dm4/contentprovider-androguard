@@ -615,6 +615,7 @@ def link():
         # print source class & method name
         print OK_MSG_PREFIX + "Class  {0}".format(method.get_class_name())
         print OK_MSG_PREFIX + "Method {0}".format(method.get_name())
+        print OK_MSG_PREFIX + "Descriptor {0}".format(method.get_descriptor())
         print OK_MSG_PREFIX + "Offset 0x{0:04x}".format(path.get_idx())
 
         # get variable name
