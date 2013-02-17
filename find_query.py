@@ -47,7 +47,15 @@ def get_method_variable(method):
 
     # NOT SAVE CLASS OF PARAMS YET
     if params:
-        return [ "v{:d}".format(i) for i in range(0, nb - len(params)) ], [ "v{:d}".format(i) for i in range(nb - len(params), nb) ]
+        # check params J or D
+        # by atdog
+        num_params = 0
+        for p in params:
+            if p in ('J', 'D'):
+                num_params += 2
+            else:
+                num_params +=1
+        return [ "v{:d}".format(i) for i in range(0, nb - num_params) ], [ "v{:d}".format(i) for i in range(nb - num_params, nb) ]
     else :
         return [ "v{:d}".format(i) for i in range(0, nb) ], []
 
@@ -347,7 +355,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif ins.get_name() in ("iget-object", "aget-object", "move", "move-object", "move-object/from16", "new-array", "int-to-long", "iget", "array-length"):
+                elif ins.get_name() in ("iget-object", "aget-object", "move", "move/from16", "move-wide", "move-object", "move-object/from16", "new-array", "int-to-long", "iget", "array-length"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
@@ -516,6 +524,7 @@ def get_intentclass_from_backtrace_result(result):
         json_result = "{}"
     else:
         json_result = "{" + json_result[:-1] + "}"
+    print json_result
     return json.loads(json_result)
 
 def _get_intentclass_from_backtrace_result(result):
@@ -528,7 +537,7 @@ def _get_intentclass_from_backtrace_result(result):
     """
     ins = result['ins']
     if type(ins) == type('str'):
-        return ins
+        return ""
     elif isinstance(ins, Instruction):
         var_list = get_instruction_variable(ins)
         if ins.get_name() in ("invoke-virtual", "invoke-direct"):
@@ -615,6 +624,7 @@ def link():
         # print source class & method name
         print OK_MSG_PREFIX + "Class  {0}".format(method.get_class_name())
         print OK_MSG_PREFIX + "Method {0}".format(method.get_name())
+        print OK_MSG_PREFIX + "Descriptor {0}".format(method.get_descriptor())
         print OK_MSG_PREFIX + "Offset 0x{0:04x}".format(path.get_idx())
 
         # get variable name
