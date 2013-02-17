@@ -656,10 +656,31 @@ def get_target_methods():
         print OK_MSG_PREFIX + "Method {0}".format(method.get_name())
         print OK_MSG_PREFIX + "Descriptor {0}".format(method.get_descriptor())
 
-        target_methods.append("{} {} {}".format(method.get_class_name(), method.get_name(), method.get_descriptor()))
+        target_methods.append("{}->{}{}".format(method.get_class_name(), method.get_name(), method.get_descriptor()))
 
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return target_methods
+
+def check_target_in_result(target_methods, result):
+    ins = result["ins"]
+    if type(ins) == type('str'):
+        pass
+    elif type(ins) == type([]):
+        for ins_dict in ins:
+            if check_target_in_result(target_methods, ins_dict) == 1:
+                return 1
+    elif isinstance(ins, Instruction):
+        for method in target_methods:
+            if method in ins.get_output():
+                print "Targe Found:", method
+                return 1
+        var_list = [ var for var in result.keys() if var != 'ins' ]
+        for var in var_list:
+            if check_target_in_result(target_methods, result[var]) == 1:
+                return 1
+    else:
+        print "Parsing Error: " + str(ins)
+    return 0
 
 # save traced vars
 traced_vars = {}
