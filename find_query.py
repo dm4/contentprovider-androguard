@@ -364,6 +364,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
                         # save to traced_vars
                         if enable_multi_caller_path:
+                            print "Write '{}' to traced_vars".format(traced_key)
                             traced_vars[traced_key] = result
 
                         return result
@@ -408,6 +409,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
                     # save to traced_vars
                     if enable_multi_caller_path:
+                        print "Write '{}' to traced_vars".format(traced_key)
                         traced_vars[traced_key] = result
 
                     return result
@@ -442,6 +444,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
                     # save to traced_vars
                     if enable_multi_caller_path:
+                        print "Write '{}' to traced_vars".format(traced_key)
                         traced_vars[traced_key] = result
 
                     return result
@@ -597,7 +600,7 @@ def link():
 #     for i in range(3, 4):
 #     for path in paths:
         path = paths[i]
-        print OK_MSG_PREFIX + "path {}".format(i)
+        print OK_MSG_PREFIX + "link path {}".format(i)
         # get analyzed method
         analyzed_method = get_analyzed_method_from_path(path)
         method = analyzed_method.get_method()
