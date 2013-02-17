@@ -597,8 +597,6 @@ def link():
 
     service_result = {}
     for i in range(0, len(paths)):
-#     for i in range(3, 4):
-#     for path in paths:
         path = paths[i]
         print OK_MSG_PREFIX + "link path {}".format(i)
         # get analyzed method
@@ -632,6 +630,27 @@ def link():
 
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return service_result
+
+def get_target_methods():
+    paths = dx.tainted_packages.search_methods("^Landroid/content/ContentResolver;$", "^query$", "^\(Landroid/net/Uri; \[Ljava/lang/String; Ljava/lang/String; \[Ljava/lang/String; Ljava/lang/String;\)Landroid/database/Cursor;$")
+
+    target_methods = []
+    for i in range(0, len(paths)):
+        path = paths[i]
+        print OK_MSG_PREFIX + "target method {}".format(i)
+        # get analyzed method
+        analyzed_method = get_analyzed_method_from_path(path)
+        method = analyzed_method.get_method()
+
+        # print source class & method name
+        print OK_MSG_PREFIX + "Class  {0}".format(method.get_class_name())
+        print OK_MSG_PREFIX + "Method {0}".format(method.get_name())
+        print OK_MSG_PREFIX + "Descriptor {0}".format(method.get_descriptor())
+
+        target_methods.append("{} {} {}".format(method.get_class_name(), method.get_name(), method.get_descriptor()))
+
+        print WARN_MSG_PREFIX + "--------------------------------------------------"
+    return target_methods
 
 # save traced vars
 traced_vars = {}
