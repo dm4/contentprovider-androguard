@@ -179,7 +179,7 @@ def print_backtrace_result(result, decompile=1):
 def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump_list = []):
     # check traced_vars
     global traced_vars
-    traced_key = "{} {} {} {}".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor(), var)
+    traced_key = "{} {} {} {} {}".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor(), ins_addr, var)
     if traced_vars.has_key(traced_key):
         print "Read '{}' from traced_vars".format(traced_key)
         return traced_vars[traced_key]
@@ -399,8 +399,6 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
-                        if enable_multi_caller_path:
-                            traced_vars[traced_key] = result[ivar]
 
                         if param_list[param_index] in ('J', 'D'):
                             ivar_index += 2
@@ -435,8 +433,6 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
-                        if enable_multi_caller_path:
-                            traced_vars[traced_key] = result[ivar]
 
                         if param_list[param_index] in ('J', 'D'):
                             ivar_index += 2
