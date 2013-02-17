@@ -176,7 +176,15 @@ def print_backtrace_result(result, decompile=1):
     else:
         _print_backtrace_result(result, 0);
 
-def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
+def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump_list = []):
+    # too deep
+    depth = len(jump_list)
+    if depth >= 7:
+        print 'TOO_DEEP'
+        for jump_method in jump_list:
+            print jump_method
+        return {"ins": "TOO_DEEP"}
+
     # get local vars & param vars passed in
     mvar_list_local, mvar_list_param = get_method_variable(method.get_method())
 
@@ -263,12 +271,14 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
             print "Want {}, From {} {} {} To {} {} {}, Find {}".format(var, method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor(), src_class_name, src_method_name, src_descriptor, target_var)
 
             # recursive find the result
-            r = backtrace_variable(analyzed_method, path.get_idx(), target_var, enable_multi_caller_path)
+            jump_list.append("{} / {} / {}".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor()))
+            r = backtrace_variable(analyzed_method, path.get_idx(), target_var, enable_multi_caller_path, jump_list)
             if r is not None:
                 if enable_multi_caller_path:
                     result["ins"].append(r)
                 else:
                     return r
+            jump_list.pop()
         return result
 
     # prepare regular expression
@@ -343,7 +353,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
                             ivar = ivar_list[i]
                             print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                             print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
-                            result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
+                            result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
                         return result
                     else:
                         print ERROR_MSG_PREFIX + "ERROR ", ins.get_name(), ins.get_output()
@@ -369,14 +379,14 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
                         ivar = ivar_list[0]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
-                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
+                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
 
                     param_index = 0
                     while ivar_index < len(ivar_list):
                         ivar = ivar_list[ivar_index]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
-                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
+                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
                         if param_list[param_index] in ('J', 'D'):
                             ivar_index += 2
                         else:
@@ -398,14 +408,14 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1):
                         ivar = ivar_list[0]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
-                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
+                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
 
                     param_index = 0
                     while ivar_index < len(ivar_list):
                         ivar = ivar_list[ivar_index]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {}\033[0m".format(ivar)
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
-                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path)
+                        result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
                         if param_list[param_index] in ('J', 'D'):
                             ivar_index += 2
                         else:
@@ -468,7 +478,7 @@ def construct_class_hierarchy():
 
 def get_intentclass_from_backtrace_result(result):
     json_result = _get_intentclass_from_backtrace_result(result)
-    if json_result == "null":
+    if json_result in ("null", "TOO_DEEP"):
         json_result = "{}"
     else:
         json_result = "{" + json_result[:-1] + "}"
@@ -583,7 +593,7 @@ def link():
         print WARN_MSG_PREFIX, get_instruction_variable(target_ins)
 
         print WARN_MSG_PREFIX, intent_variable
-        result = backtrace_variable(analyzed_method, path.get_idx(), intent_variable, 0)
+        result = backtrace_variable(analyzed_method, path.get_idx(), intent_variable, 0, [])
         print_backtrace_result(result, 0)
         print_backtrace_result(result)
         json_result = get_intentclass_from_backtrace_result(result)
@@ -644,6 +654,6 @@ if __name__ == "__main__" :
         uri_variable = get_instruction_variable(target_ins)[1]
 
         # backtrace variable
-        result = backtrace_variable(analyzed_method, path.get_idx(), uri_variable)
+        result = backtrace_variable(analyzed_method, path.get_idx(), uri_variable, 1, [])
         print_backtrace_result(result, 0)
 #        print_backtrace_result(result)
