@@ -47,7 +47,15 @@ def get_method_variable(method):
 
     # NOT SAVE CLASS OF PARAMS YET
     if params:
-        return [ "v{:d}".format(i) for i in range(0, nb - len(params)) ], [ "v{:d}".format(i) for i in range(nb - len(params), nb) ]
+        # check params J or D
+        # by atdog
+        num_params = 0
+        for p in params:
+            if p in ('J', 'D'):
+                num_params += 2
+            else:
+                num_params +=1
+        return [ "v{:d}".format(i) for i in range(0, nb - num_params) ], [ "v{:d}".format(i) for i in range(nb - num_params, nb) ]
     else :
         return [ "v{:d}".format(i) for i in range(0, nb) ], []
 
@@ -265,7 +273,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
             # invoke-direct / invoke-virtual will pass one more param as instance
-            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-direct/range"):
+            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-direct/range"):
                 target_var = target_var_list[target_param_index + 1]
             elif target_ins.get_name() in ("invoke-static", "invoke-static/range"):
                 target_var = target_var_list[target_param_index]
@@ -290,6 +298,15 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
     # prepare regular expression
     re_var = re.compile(var + '([^0-9a-zA-Z_]|$)')
+    re_op_if = re.compile("^if(-.*)?$")
+    re_op_iget = re.compile("^iget(-.*)?$")
+    re_op_sget = re.compile("^sget(-.*)?$")
+    re_op_aget = re.compile("^aget(-.*)?$")
+    re_op_iput = re.compile("^iput(-.*)?$")
+    re_op_sput = re.compile("^sput(-.*)?$")
+    re_op_aput = re.compile("^aput(-.*)?$")
+    re_op_const = re.compile("^const((-|/).*)?$")
+    re_op_typetotype = re.compile("^.*-to-.*$")
 
     # get mappings
     #     index -> instruction mapping
@@ -343,11 +360,11 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
             # match the instruction to search the target var
             if re_var.match(ins.get_output()):
-                if ins.get_name() in ("sget-object", "new-instance", "const-string", "const", "const/4", "const/16", "const-class", "const-wide/16"):
+                if re_op_const.match(ins.get_name()) or re_op_sget.match(ins.get_name()) or ins.get_name() in ("new-instance"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif ins.get_name() in ("iget-object", "aget-object", "move", "move-object", "move-object/from16", "new-array", "int-to-long", "iget", "array-length"):
+                elif re_op_typetotype.match(ins.get_name) or re_op_age.match(ins.get_name()) or re_op_iget.match(ins.get_name()) or ins.get_name() in ("move", "move/from16", "move-wide", "move-wide/from16", "move-object", "move-object/from16", "new-array", "array-length"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
@@ -408,14 +425,14 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-static", "invoke-direct/range", "invoke-interface"):
+                elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-static", "invoke-static/range", "invoke-direct/range", "invoke-interface", "invoke-interface/range"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
 
                     # backtrace all other vars in the instruction
                     #     - aware: long(J)/double(D) will have two register
                     param_list = get_invoke_info(ins.get_output())[2]
-                    if ins.get_name() in ("invoke-static"):
+                    if ins.get_name() in ("invoke-static", "invoke-static/range"):
                         ivar_index = 0
                     else:
                         ivar_index = 1
@@ -458,7 +475,9 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
                     return result
                 # aput-object v0, v1, v2 => v2[v1] = v0
-                elif ins.get_name() in ("check-cast", "if-eqz", "if-nez", "if-lt", "if-gez", "aput-object"):
+                # if -> "^if(-.*)?$"
+                # ignore all xput-*
+                elif re_op_if.match(ins.get_name()) or re_op_iput.match(ins.get_name()) or re_op_aput.match(ins.get_name()) or re_op_sput.match(ins.get_name()) or ins.get_name() in ("check-cast"):
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
@@ -516,6 +535,7 @@ def get_intentclass_from_backtrace_result(result):
         json_result = "{}"
     else:
         json_result = "{" + json_result[:-1] + "}"
+    print json_result
     return json.loads(json_result)
 
 def _get_intentclass_from_backtrace_result(result):
@@ -528,7 +548,7 @@ def _get_intentclass_from_backtrace_result(result):
     """
     ins = result['ins']
     if type(ins) == type('str'):
-        return ins
+        return ""
     elif isinstance(ins, Instruction):
         var_list = get_instruction_variable(ins)
         if ins.get_name() in ("invoke-virtual", "invoke-direct"):
@@ -615,6 +635,7 @@ def link():
         # print source class & method name
         print OK_MSG_PREFIX + "Class  {0}".format(method.get_class_name())
         print OK_MSG_PREFIX + "Method {0}".format(method.get_name())
+        print OK_MSG_PREFIX + "Descriptor {0}".format(method.get_descriptor())
         print OK_MSG_PREFIX + "Offset 0x{0:04x}".format(path.get_idx())
 
         # get variable name
@@ -672,7 +693,7 @@ def check_target_in_result(target_methods, result):
     elif isinstance(ins, Instruction):
         for method in target_methods:
             if method in ins.get_output():
-                print "Targe Found:", method
+                print "Target Found:", method
                 return 1
         var_list = [ var for var in result.keys() if var != 'ins' ]
         for var in var_list:
