@@ -299,6 +299,9 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
     # prepare regular expression
     re_var = re.compile(var + '([^0-9a-zA-Z_]|$)')
     re_op_if = re.compile("^if(-.*)?$")
+    re_op_iget = re.compile("^iget(-.*)?$")
+    re_op_sget = re.compile("^sget(-.*)?$")
+    re_op_const = re.compile("^const((-|/).*)?$")
 
     # get mappings
     #     index -> instruction mapping
@@ -352,11 +355,11 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
             # match the instruction to search the target var
             if re_var.match(ins.get_output()):
-                if ins.get_name() in ("sget-object", "new-instance", "const-string", "const", "const/4", "const/16", "const-class", "const-wide/16", "const-wide/high16", "const-wide", "const-wide/32", "sget", "const/high16"):
+                if re_op_const.match(ins.get_name()) or re_op_sget.match(ins.get_name()) or ins.get_name() in ("new-instance"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif ins.get_name() in ("iget-object", "aget-object", "aget", "move", "move/from16", "move-wide", "move-wide/from16", "move-object", "move-object/from16", "new-array", "int-to-long", "iget", "iget-boolean", "iget-wide", "array-length"):
+                elif re_op_iget.match(ins.get_name()) or ins.get_name() in ("aget-object", "aget", "move", "move/from16", "move-wide", "move-wide/from16", "move-object", "move-object/from16", "new-array", "int-to-long", "array-length"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
@@ -417,7 +420,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-static", "invoke-static/range", "invoke-direct/range", "invoke-interface"):
+                elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-static", "invoke-static/range", "invoke-direct/range", "invoke-interface", "invoke-interface/range"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
 
