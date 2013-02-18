@@ -351,11 +351,11 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
             # match the instruction to search the target var
             if re_var.match(ins.get_output()):
-                if ins.get_name() in ("sget-object", "new-instance", "const-string", "const", "const/4", "const/16", "const-class", "const-wide/16", "const-wide/high16", "const-wide", "const-wide/32"):
+                if ins.get_name() in ("sget-object", "new-instance", "const-string", "const", "const/4", "const/16", "const-class", "const-wide/16", "const-wide/high16", "const-wide", "const-wide/32", "sget"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif ins.get_name() in ("iget-object", "aget-object", "move", "move/from16", "move-wide", "move-object", "move-object/from16", "new-array", "int-to-long", "iget", "array-length", "sget"):
+                elif ins.get_name() in ("iget-object", "aget-object", "aget", "move", "move/from16", "move-wide", "move-wide/from16", "move-object", "move-object/from16", "new-array", "int-to-long", "iget", "iget-boolean", "iget-wide", "array-length"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
