@@ -301,7 +301,12 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
     re_op_if = re.compile("^if(-.*)?$")
     re_op_iget = re.compile("^iget(-.*)?$")
     re_op_sget = re.compile("^sget(-.*)?$")
+    re_op_aget = re.compile("^aget(-.*)?$")
+    re_op_iput = re.compile("^iput(-.*)?$")
+    re_op_sput = re.compile("^sput(-.*)?$")
+    re_op_aput = re.compile("^aput(-.*)?$")
     re_op_const = re.compile("^const((-|/).*)?$")
+    re_op_typetotype = re.compile("^.*-to-.*$")
 
     # get mappings
     #     index -> instruction mapping
@@ -359,7 +364,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif re_op_iget.match(ins.get_name()) or ins.get_name() in ("aget-object", "aget", "move", "move/from16", "move-wide", "move-wide/from16", "move-object", "move-object/from16", "new-array", "int-to-long", "array-length"):
+                elif re_op_typetotype.match(ins.get_name) or re_op_age.match(ins.get_name()) or re_op_iget.match(ins.get_name()) or ins.get_name() in ("move", "move/from16", "move-wide", "move-wide/from16", "move-object", "move-object/from16", "new-array", "array-length"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
@@ -471,7 +476,8 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     return result
                 # aput-object v0, v1, v2 => v2[v1] = v0
                 # if -> "^if(-.*)?$"
-                elif re_op_if.match(ins.get_name()) or ins.get_name() in ("check-cast", "aput-object"):
+                # ignore all xput-*
+                elif re_op_if.match(ins.get_name()) or re_op_iput.match(ins.get_name()) or re_op_aput.match(ins.get_name()) or re_op_sput.match(ins.get_name()) or ins.get_name() in ("check-cast"):
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
