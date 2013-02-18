@@ -298,6 +298,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
     # prepare regular expression
     re_var = re.compile(var + '([^0-9a-zA-Z_]|$)')
+    re_op_if = re.compile("^if(-.*)?$")
 
     # get mappings
     #     index -> instruction mapping
@@ -466,7 +467,8 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
                     return result
                 # aput-object v0, v1, v2 => v2[v1] = v0
-                elif ins.get_name() in ("check-cast", "if-eq", "if-eqz", "if-nez", "if-lt", "if-lez", "if-ne", "if-ge", "if-gez", "aput-object"):
+                # if -> "^if(-.*)?$"
+                elif re_op_if.match(ins.get_name()) or ins.get_name() in ("check-cast", "aput-object"):
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
