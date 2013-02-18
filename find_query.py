@@ -364,7 +364,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif re_op_typetotype.match(ins.get_name) or re_op_age.match(ins.get_name()) or re_op_iget.match(ins.get_name()) or ins.get_name() in ("move", "move/from16", "move-wide", "move-wide/from16", "move-object", "move-object/from16", "new-array", "array-length"):
+                elif re_op_typetotype.match(ins.get_name()) or re_op_age.match(ins.get_name()) or re_op_iget.match(ins.get_name()) or ins.get_name() in ("move", "move/from16", "move-wide", "move-wide/from16", "move-object", "move-object/from16", "new-array", "array-length"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
