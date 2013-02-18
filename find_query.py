@@ -466,7 +466,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
                     return result
                 # aput-object v0, v1, v2 => v2[v1] = v0
-                elif ins.get_name() in ("check-cast", "if-eqz", "if-nez", "if-lt", "if-gez", "aput-object"):
+                elif ins.get_name() in ("check-cast", "if-eq", "if-eqz", "if-nez", "if-lt", "if-lez", "if-ne", "if-ge", "if-gez", "aput-object"):
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
