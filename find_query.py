@@ -273,7 +273,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
             # invoke-direct / invoke-virtual will pass one more param as instance
-            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-direct/range"):
+            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-direct/range"):
                 target_var = target_var_list[target_param_index + 1]
             elif target_ins.get_name() in ("invoke-static", "invoke-static/range"):
                 target_var = target_var_list[target_param_index]
@@ -355,7 +355,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     result = {"ins": ins}
                     return result
-                elif ins.get_name() in ("iget-object", "aget-object", "move", "move/from16", "move-wide", "move-object", "move-object/from16", "new-array", "int-to-long", "iget", "array-length"):
+                elif ins.get_name() in ("iget-object", "aget-object", "move", "move/from16", "move-wide", "move-object", "move-object/from16", "new-array", "int-to-long", "iget", "array-length", "sget"):
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
                     ivar_list = get_instruction_variable(ins)
 
