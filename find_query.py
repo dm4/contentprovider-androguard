@@ -416,14 +416,14 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-static", "invoke-direct/range", "invoke-interface"):
+                elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-static", "invoke-static/range", "invoke-direct/range", "invoke-interface"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
 
                     # backtrace all other vars in the instruction
                     #     - aware: long(J)/double(D) will have two register
                     param_list = get_invoke_info(ins.get_output())[2]
-                    if ins.get_name() in ("invoke-static"):
+                    if ins.get_name() in ("invoke-static", "invoke-static/range"):
                         ivar_index = 0
                     else:
                         ivar_index = 1
@@ -682,7 +682,7 @@ def check_target_in_result(target_methods, result):
     elif isinstance(ins, Instruction):
         for method in target_methods:
             if method in ins.get_output():
-                print "Targe Found:", method
+                print "Target Found:", method
                 return 1
         var_list = [ var for var in result.keys() if var != 'ins' ]
         for var in var_list:
