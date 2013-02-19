@@ -400,7 +400,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
 
                     param_list = get_invoke_info(ins.get_output())[2]
-                    if ins.get_name() in ("invoke-static"):
+                    if ins.get_name() in ("invoke-static", "invoke-static/range"):
                         ivar_index = 0
                     else:
                         ivar_index = 1
