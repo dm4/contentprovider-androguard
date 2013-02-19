@@ -184,6 +184,25 @@ def print_backtrace_result(result, decompile=1):
     else:
         _print_backtrace_result(result, 0);
 
+def create_method_exception_link(method):
+    # create link between blocks base on exception
+    #     by atdog
+    global method_exceptions_link_done_list
+    if method not in method_exceptions_link_done_list:
+        blocks_list = method.get_basic_blocks().gets()
+        bb = method.get_basic_blocks()
+        for e in method.exceptions.gets():
+#             buff = "%x:%x\n" % (e.start, e.end)
+            raise_exception_block = bb.get_basic_block(e.start)
+
+            child_blocks_idx_list = []
+            for i in e.exceptions :
+                child_blocks_idx_list.append(i[1])
+#                 buff += "\t(%s -> %x)\n" % (i[0], i[1])
+            raise_exception_block.set_childs(child_blocks_idx_list)
+#             print buff
+        method_exceptions_link_done_list.append(method)
+
 def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump_list = []):
     # check traced_vars
     global traced_vars
@@ -191,6 +210,8 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
     if traced_vars.has_key(traced_key):
         print "Read '{}' from traced_vars".format(traced_key)
         return traced_vars[traced_key]
+
+    create_method_exception_link(method)
 
     # too deep
     depth = len(jump_list)
@@ -273,7 +294,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
             # invoke-direct / invoke-virtual will pass one more param as instance
-            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-direct/range"):
+            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-super", "invoke-virtual/range", "invoke-direct/range", "invoke-super/range"):
                 target_var = target_var_list[target_param_index + 1]
             elif target_ins.get_name() in ("invoke-static", "invoke-static/range"):
                 target_var = target_var_list[target_param_index]
@@ -400,7 +421,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {}\033[0m".format(idx, ins.get_name(), ins.get_output())
 
                     param_list = get_invoke_info(ins.get_output())[2]
-                    if ins.get_name() in ("invoke-static"):
+                    if ins.get_name() in ("invoke-static", "invoke-static/range"):
                         ivar_index = 0
                     else:
                         ivar_index = 1
@@ -425,7 +446,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-static", "invoke-static/range", "invoke-direct/range", "invoke-interface", "invoke-interface/range"):
+                elif ins.get_name() in ("invoke-direct", "invoke-direct/range", "invoke-virtual", "invoke-virtual/range", "invoke-static", "invoke-static/range", "invoke-interface", "invoke-interface/range", "invoke-super", "invoke-super/range"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
 
@@ -488,6 +509,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
         # push previous blocks to stack
         previous_blocks = current_block.get_prev()
         print WARN_MSG_PREFIX + "\033[1;30mFind {:d} Prev Block(s)\033[0m".format(len(previous_blocks))
+
         for block in current_block.get_prev():
             if not traced_block.has_key(block[2]):
                 stack.append(block[2])
@@ -705,6 +727,7 @@ def check_target_in_result(target_methods, result):
 
 # save traced vars
 traced_vars = {}
+method_exceptions_link_done_list = []
 
 if __name__ == "__main__" :
     # load apk and analyze
