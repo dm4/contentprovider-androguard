@@ -672,8 +672,8 @@ def link():
 
         print WARN_MSG_PREFIX, intent_variable
         result = backtrace_variable(analyzed_method, path.get_idx(), intent_variable, 0, [])
-        print_backtrace_result(result, 0)
-        print_backtrace_result(result)
+#        print_backtrace_result(result, 0)
+#        print_backtrace_result(result)
         json_result = get_intentclass_from_backtrace_result(result)
 
         m = find_service_method(json_result)
