@@ -488,7 +488,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
 
                     # backtrace other var in the instruction
-                    for i in range(0, len(ivar_list)):
+                    for i in range(1, len(ivar_list)):
                         ivar = ivar_list[i]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
