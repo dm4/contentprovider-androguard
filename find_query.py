@@ -482,7 +482,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8"):
+                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
