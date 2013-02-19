@@ -273,7 +273,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
             target_var_list = get_instruction_variable(target_ins)
             target_param_index = mvar_list_param.index(var)
             # invoke-direct / invoke-virtual will pass one more param as instance
-            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-direct/range"):
+            if target_ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-super", "invoke-virtual/range", "invoke-direct/range", "invoke-super/range"):
                 target_var = target_var_list[target_param_index + 1]
             elif target_ins.get_name() in ("invoke-static", "invoke-static/range"):
                 target_var = target_var_list[target_param_index]
@@ -425,7 +425,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("invoke-direct", "invoke-virtual", "invoke-virtual/range", "invoke-static", "invoke-static/range", "invoke-direct/range", "invoke-interface", "invoke-interface/range"):
+                elif ins.get_name() in ("invoke-direct", "invoke-direct/range", "invoke-virtual", "invoke-virtual/range", "invoke-static", "invoke-static/range", "invoke-interface", "invoke-interface/range", "invoke-super", "invoke-super/range"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
 
