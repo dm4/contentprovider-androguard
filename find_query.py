@@ -482,7 +482,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8", "sub-int", "or-int/2addr", "or-int/lit8", "rem-int/2addr", "mul-double/2addr"):
+                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8", "sub-int", "or-int/2addr", "or-int/lit8", "rem-int/2addr", "mul-double/2addr", "mul-long/2addr"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
@@ -492,6 +492,18 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                         ivar = ivar_list[i]
                         print WARN_MSG_PREFIX + "\033[0;33mBacktrace ivar {} {} {} {}\033[0m".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor() , ivar)
                         result[ivar] = backtrace_variable(method, idx, ivar, enable_multi_caller_path, jump_list)
+
+                    # save to traced_vars
+                    print "Write '{}' to traced_vars".format(traced_key)
+                    traced_vars[traced_key] = result
+
+                    return result
+                # Exception
+                #    [*] 0480 move-exception       v23
+                #    [*] 0492 invoke-virtual/range v23, Lorg/apache/http/client/HttpResponseException;->getStatusCode()I
+                elif ins.get_name() == "move-exception":
+                    result = {"ins": ins}
+                    print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
 
                     # save to traced_vars
                     print "Write '{}' to traced_vars".format(traced_key)
