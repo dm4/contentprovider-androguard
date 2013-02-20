@@ -788,8 +788,14 @@ if __name__ == "__main__" :
 
     # construct intent / service link
     intent_service_link = None
-    intent_service_link = link()
+    broadcast_link = None
+    intent_service_link = service_link()
+    broadcast_link = broadcast_link()
     print intent_service_link
+    print broadcast_link
+
+    # combine
+    intent_service_link = dict(intent_service_link.items() + broadcast_link.items())
 
     # search ContentResolver.query()
     query_paths = dx.tainted_packages.search_methods("^Landroid/content/ContentResolver;$", "^query$", ".")
