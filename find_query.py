@@ -482,7 +482,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8"):
+                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8", "sub-int", "or-int/2addr", "or-int/lit8", "rem-int/2addr", "mul-double/2addr"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
@@ -501,7 +501,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                 # aput-object v0, v1, v2 => v2[v1] = v0
                 # if -> "^if(-.*)?$"
                 # ignore all xput-*
-                elif re_op_if.match(ins.get_name()) or re_op_iput.match(ins.get_name()) or re_op_aput.match(ins.get_name()) or re_op_sput.match(ins.get_name()) or ins.get_name() in ("check-cast"):
+                elif re_op_if.match(ins.get_name()) or re_op_iput.match(ins.get_name()) or re_op_aput.match(ins.get_name()) or re_op_sput.match(ins.get_name()) or ins.get_name() in ("check-cast", "packed-switch"):
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
@@ -617,7 +617,7 @@ def _class_to_java_format(class_name):
         class_name = 'L' + class_name.replace(".","/") + ';'
     return '{}'.format(class_name)
 
-def find_service_method(json_result):
+def find_service_method(json_result, service = "service"):
     json_keys_list = json_result.keys()
     class_name = None
     if json_result.has_key("class"):
@@ -637,22 +637,66 @@ def find_service_method(json_result):
 
     for method in d.get_methods():
         if method.get_class_name() == class_name:
-            if method.get_name() == "onHandleIntent":
-                return method
-            elif method.get_name() == "onStartCommand":
-                return method
+            if service == "service":
+                if method.get_name() == "onHandleIntent":
+                    return method
+                elif method.get_name() == "onStartCommand":
+                    return method
+                else:
+                    continue
             else:
-                continue
+                if method.get_name() == "onReceive":
+                    return method
         else:
             continue
 
-def link():
+def broadcast_link():
+    paths = dx.tainted_packages.search_methods("^Landroid/content/Context;$", "^sendBroadcast$", "^\(Landroid/content/Intent;( .*\)V)?")
+
+    service_result = {}
+    for i in range(0, len(paths)):
+        path = paths[i]
+        print OK_MSG_PREFIX + "broadcast link path {}".format(i)
+        # get analyzed method
+        analyzed_method = get_analyzed_method_from_path(path)
+        method = analyzed_method.get_method()
+
+        # print source class & method name
+        print OK_MSG_PREFIX + "Class  {0}".format(method.get_class_name())
+        print OK_MSG_PREFIX + "Method {0}".format(method.get_name())
+        print OK_MSG_PREFIX + "Descriptor {0}".format(method.get_descriptor())
+        print OK_MSG_PREFIX + "Offset 0x{0:04x}".format(path.get_idx())
+
+        # get variable name
+        target_ins = get_instruction_by_idx(analyzed_method, path.get_idx())
+        intent_variable = get_instruction_variable(target_ins)[1]
+
+        print WARN_MSG_PREFIX + target_ins.get_name(), target_ins.get_output()
+        print WARN_MSG_PREFIX, get_instruction_variable(target_ins)
+
+        print WARN_MSG_PREFIX, intent_variable
+        result = backtrace_variable(analyzed_method, path.get_idx(), intent_variable, 0, [])
+#        print_backtrace_result(result, 0)
+#        print_backtrace_result(result)
+        json_result = get_intentclass_from_backtrace_result(result)
+
+        m = find_service_method(json_result, "broadcast")
+        if str(type(m)) == "<type 'instance'>":
+            if "{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor()) not in service_result.keys():
+                service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())] = []
+#            service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())].append({"idx" : path.get_idx(), "mx" : analyzed_method})
+            service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())].append(path)
+
+        print WARN_MSG_PREFIX + "--------------------------------------------------"
+    return service_result
+
+def service_link():
     paths = dx.tainted_packages.search_methods("^Landroid/content/Context;$", "^startService$", "^\(Landroid/content/Intent;\)Landroid/content/ComponentName;$")
 
     service_result = {}
     for i in range(0, len(paths)):
         path = paths[i]
-        print OK_MSG_PREFIX + "link path {}".format(i)
+        print OK_MSG_PREFIX + "service link path {}".format(i)
         # get analyzed method
         analyzed_method = get_analyzed_method_from_path(path)
         method = analyzed_method.get_method()
