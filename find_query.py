@@ -256,7 +256,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
         # find all caller path
         caller_paths = []
         for c in all_subclasses:
-            for path in dx.tainted_packages.search_methods(c, method.get_method().get_name(), descriptor):
+            for path in dx.tainted_packages.search_methods("^{}$".format(c), "^{}$".format(method.get_method().get_name()), "^{}$".format(descriptor)):
                 # skip self call loop
                 src_class_name, src_method_name, src_descriptor = path.get_src(cm)
                 if src_class_name == c and src_method_name == method.get_method().get_name() and src_descriptor == method.get_method().get_descriptor():
@@ -742,8 +742,14 @@ def service_link():
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return service_result
 
-def get_target_methods():
-    paths = dx.tainted_packages.search_methods("^Landroid/content/ContentResolver;$", "^query$", "^\(Landroid/net/Uri; \[Ljava/lang/String; Ljava/lang/String; \[Ljava/lang/String; Ljava/lang/String;\)Landroid/database/Cursor;$")
+def get_target_methods(class_name = "^Landroid/content/ContentResolver;$", method_name = "^query$", descriptor = "^(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;$", level = 0):
+    if level >= 2:
+        return []
+    level += 1
+
+    descriptor = descriptor.replace('(', '\(').replace(')', '\)').replace('[', '\[').replace(']', '\]')
+    print 'dx.tainted_packages.search_methods("{}", "{}", "{}")'.format(class_name, method_name, descriptor)
+    paths = dx.tainted_packages.search_methods(class_name, method_name, descriptor)
 
     target_methods = []
     for i in range(0, len(paths)):
@@ -759,6 +765,8 @@ def get_target_methods():
         print OK_MSG_PREFIX + "Descriptor {0}".format(method.get_descriptor())
 
         target_methods.append("{}->{}{}".format(method.get_class_name(), method.get_name(), method.get_descriptor()))
+
+        target_methods += get_target_methods("^{}$".format(method.get_class_name()), "^{}$".format(method.get_name()), "^{}$".format(method.get_descriptor()), level)
 
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return target_methods
