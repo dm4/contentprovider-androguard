@@ -771,23 +771,27 @@ def get_target_methods(class_name = "^Landroid/content/ContentResolver;$", metho
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return target_methods
 
-def check_target_in_result(target_methods, result):
+def check_target_in_result(target_methods, result, ins_stack = []):
     ins = result["ins"]
     if type(ins) == type('str'):
         pass
     elif type(ins) == type([]):
         for ins_dict in ins:
-            if check_target_in_result(target_methods, ins_dict) == 1:
+            if check_target_in_result(target_methods, ins_dict, ins_stack) == 1:
                 return 1
     elif isinstance(ins, Instruction):
+        ins_stack.append(ins)
         for method in target_methods:
             if method in ins.get_output():
                 print "Target Found:", method
+                for i in ins_stack:
+                    print "{} {}".format(i.get_name(), i.get_output())
                 return 1
         var_list = [ var for var in result.keys() if var != 'ins' ]
         for var in var_list:
-            if check_target_in_result(target_methods, result[var]) == 1:
+            if check_target_in_result(target_methods, result[var], ins_stack) == 1:
                 return 1
+        ins_stack = ins_stack[:-1]
     else:
         print "Parsing Error: " + str(ins)
     return 0
