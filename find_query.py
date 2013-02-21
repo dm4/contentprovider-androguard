@@ -482,7 +482,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8", "sub-int", "or-int/2addr", "or-int/lit8", "rem-int/2addr", "mul-double/2addr", "mul-long/2addr"):
+                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8", "sub-int", "or-int/2addr", "or-int/lit8", "rem-int/2addr", "mul-double/2addr", "mul-long/2addr", "div-float/2addr"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
@@ -513,7 +513,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                 # aput-object v0, v1, v2 => v2[v1] = v0
                 # if -> "^if(-.*)?$"
                 # ignore all xput-*
-                elif re_op_if.match(ins.get_name()) or re_op_iput.match(ins.get_name()) or re_op_aput.match(ins.get_name()) or re_op_sput.match(ins.get_name()) or ins.get_name() in ("check-cast", "packed-switch"):
+                elif re_op_if.match(ins.get_name()) or re_op_iput.match(ins.get_name()) or re_op_aput.match(ins.get_name()) or re_op_sput.match(ins.get_name()) or ins.get_name() in ("check-cast", "packed-switch", "monitor-enter"):
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
@@ -743,7 +743,7 @@ def service_link():
     return service_result
 
 def get_target_methods(class_name = "^Landroid/content/ContentResolver;$", method_name = "^query$", descriptor = "^(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;$", level = 0):
-    if level >= 2:
+    if level >= 4:
         return []
     level += 1
 
