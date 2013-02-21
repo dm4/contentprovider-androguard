@@ -781,6 +781,11 @@ def check_target_in_result(target_methods, result, ins_stack = []):
                 return 1
     elif isinstance(ins, Instruction):
         ins_stack.append(ins)
+        if "Landroid/content/ContentResolver;->query(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;" in ins.get_output():
+            print "Target Found: query()"
+            for i in ins_stack:
+                print "{} {}".format(i.get_name(), i.get_output())
+            return 1
         for method in target_methods:
             if method in ins.get_output():
                 print "Target Found:", method
