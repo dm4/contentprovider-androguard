@@ -742,7 +742,7 @@ def service_link():
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return service_result
 
-def get_target_methods(class_name = "^Landroid/content/ContentResolver;$", method_name = "^query$", descriptor = "^(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;$", level = 0):
+def get_target_methods(level = 0, class_name = "^Landroid/content/ContentResolver;$", method_name = "^query$", descriptor = "^(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;$"):
     if level >= 4:
         return []
     level += 1
@@ -766,7 +766,7 @@ def get_target_methods(class_name = "^Landroid/content/ContentResolver;$", metho
 
         target_methods.append("{}->{}{}".format(method.get_class_name(), method.get_name(), method.get_descriptor()))
 
-        target_methods += get_target_methods("^{}$".format(method.get_class_name()), "^{}$".format(method.get_name()), "^{}$".format(method.get_descriptor()), level)
+        target_methods += get_target_methods(level, "^{}$".format(method.get_class_name()), "^{}$".format(method.get_name()), "^{}$".format(method.get_descriptor()))
 
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return target_methods
