@@ -203,7 +203,7 @@ def create_method_exception_link(method):
 #             print buff
         method_exceptions_link_done_list.append(method)
 
-def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump_list = []):
+def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump_list = [], method_depth = 10):
     # check traced_vars
     global traced_vars
     traced_key = "{} {} {} {} {} {}".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor(), ins_addr, var, enable_multi_caller_path)
@@ -215,7 +215,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
     # too deep
     depth = len(jump_list)
-    if depth >= 10:
+    if depth >= method_depth:
         print 'TOO_DEEP'
         for jump_method in jump_list:
             print jump_method
