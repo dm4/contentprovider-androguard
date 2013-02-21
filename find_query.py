@@ -203,7 +203,7 @@ def create_method_exception_link(method):
 #             print buff
         method_exceptions_link_done_list.append(method)
 
-def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump_list = []):
+def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump_list = [], method_depth = 10):
     # check traced_vars
     global traced_vars
     traced_key = "{} {} {} {} {} {}".format(method.get_method().get_class_name(), method.get_method().get_name(), method.get_method().get_descriptor(), ins_addr, var, enable_multi_caller_path)
@@ -215,7 +215,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
 
     # too deep
     depth = len(jump_list)
-    if depth >= 10:
+    if depth >= method_depth:
         print 'TOO_DEEP'
         for jump_method in jump_list:
             print jump_method
@@ -482,7 +482,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8", "sub-int", "or-int/2addr", "or-int/lit8", "rem-int/2addr", "mul-double/2addr", "mul-long/2addr", "div-float/2addr"):
+                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8", "sub-int", "or-int/2addr", "or-int/lit8", "rem-int/2addr", "mul-double/2addr", "mul-long/2addr", "div-float/2addr", "add-double/2addr", "mul-double"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
@@ -742,7 +742,7 @@ def service_link():
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return service_result
 
-def get_target_methods(class_name = "^Landroid/content/ContentResolver;$", method_name = "^query$", descriptor = "^(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;$", level = 0):
+def get_target_methods(level = 0, class_name = "^Landroid/content/ContentResolver;$", method_name = "^query$", descriptor = "^(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;$"):
     if level >= 4:
         return []
     level += 1
@@ -766,7 +766,7 @@ def get_target_methods(class_name = "^Landroid/content/ContentResolver;$", metho
 
         target_methods.append("{}->{}{}".format(method.get_class_name(), method.get_name(), method.get_descriptor()))
 
-        target_methods += get_target_methods("^{}$".format(method.get_class_name()), "^{}$".format(method.get_name()), "^{}$".format(method.get_descriptor()), level)
+        target_methods += get_target_methods(level, "^{}$".format(method.get_class_name()), "^{}$".format(method.get_name()), "^{}$".format(method.get_descriptor()))
 
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return target_methods
@@ -781,6 +781,11 @@ def check_target_in_result(target_methods, result, ins_stack = []):
                 return 1
     elif isinstance(ins, Instruction):
         ins_stack.append(ins)
+        if "Landroid/content/ContentResolver;->query(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;" in ins.get_output():
+            print "Target Found: query()"
+            for i in ins_stack:
+                print "{} {}".format(i.get_name(), i.get_output())
+            return 1
         for method in target_methods:
             if method in ins.get_output():
                 print "Target Found:", method
