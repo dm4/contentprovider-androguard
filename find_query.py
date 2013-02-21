@@ -256,7 +256,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
         # find all caller path
         caller_paths = []
         for c in all_subclasses:
-            for path in dx.tainted_packages.search_methods(c, method.get_method().get_name(), descriptor):
+            for path in dx.tainted_packages.search_methods("^{}$".format(c), "^{}$".format(method.get_method().get_name()), "^{}$".format(descriptor)):
                 # skip self call loop
                 src_class_name, src_method_name, src_descriptor = path.get_src(cm)
                 if src_class_name == c and src_method_name == method.get_method().get_name() and src_descriptor == method.get_method().get_descriptor():
@@ -482,7 +482,7 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
-                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8"):
+                elif ins.get_name() in ("div-long", "div-long/2addr", "add-int/lit8", "add-int", "mul-int/2addr", "sub-long", "add-int/2addr", "mul-int/lit16", "rem-int/lit8", "add-long/2addr", "add-int/lit16", "div-int/lit8", "sub-int", "or-int/2addr", "or-int/lit8", "rem-int/2addr", "mul-double/2addr", "mul-long/2addr", "div-float/2addr"):
                     ivar_list = get_instruction_variable(ins)
                     result = {"ins": ins}
                     print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
@@ -498,10 +498,22 @@ def backtrace_variable(method, ins_addr, var, enable_multi_caller_path = 1, jump
                     traced_vars[traced_key] = result
 
                     return result
+                # Exception
+                #    [*] 0480 move-exception       v23
+                #    [*] 0492 invoke-virtual/range v23, Lorg/apache/http/client/HttpResponseException;->getStatusCode()I
+                elif ins.get_name() == "move-exception":
+                    result = {"ins": ins}
+                    print WARN_MSG_PREFIX + "\033[1;30mFound {}\033[0m".format(var)
+
+                    # save to traced_vars
+                    print "Write '{}' to traced_vars".format(traced_key)
+                    traced_vars[traced_key] = result
+
+                    return result
                 # aput-object v0, v1, v2 => v2[v1] = v0
                 # if -> "^if(-.*)?$"
                 # ignore all xput-*
-                elif re_op_if.match(ins.get_name()) or re_op_iput.match(ins.get_name()) or re_op_aput.match(ins.get_name()) or re_op_sput.match(ins.get_name()) or ins.get_name() in ("check-cast"):
+                elif re_op_if.match(ins.get_name()) or re_op_iput.match(ins.get_name()) or re_op_aput.match(ins.get_name()) or re_op_sput.match(ins.get_name()) or ins.get_name() in ("check-cast", "packed-switch", "monitor-enter"):
                     print WARN_MSG_PREFIX + "\033[1;30m{:04x} {:20s} {} --- continue\033[0m".format(idx, ins.get_name(), ins.get_output())
                     continue
                 else:
@@ -617,7 +629,7 @@ def _class_to_java_format(class_name):
         class_name = 'L' + class_name.replace(".","/") + ';'
     return '{}'.format(class_name)
 
-def find_service_method(json_result):
+def find_service_method(json_result, service = "service"):
     json_keys_list = json_result.keys()
     class_name = None
     if json_result.has_key("class"):
@@ -637,22 +649,66 @@ def find_service_method(json_result):
 
     for method in d.get_methods():
         if method.get_class_name() == class_name:
-            if method.get_name() == "onHandleIntent":
-                return method
-            elif method.get_name() == "onStartCommand":
-                return method
+            if service == "service":
+                if method.get_name() == "onHandleIntent":
+                    return method
+                elif method.get_name() == "onStartCommand":
+                    return method
+                else:
+                    continue
             else:
-                continue
+                if method.get_name() == "onReceive":
+                    return method
         else:
             continue
 
-def link():
+def broadcast_link():
+    paths = dx.tainted_packages.search_methods("^Landroid/content/Context;$", "^sendBroadcast$", "^\(Landroid/content/Intent;( .*\)V)?")
+
+    service_result = {}
+    for i in range(0, len(paths)):
+        path = paths[i]
+        print OK_MSG_PREFIX + "broadcast link path {}".format(i)
+        # get analyzed method
+        analyzed_method = get_analyzed_method_from_path(path)
+        method = analyzed_method.get_method()
+
+        # print source class & method name
+        print OK_MSG_PREFIX + "Class  {0}".format(method.get_class_name())
+        print OK_MSG_PREFIX + "Method {0}".format(method.get_name())
+        print OK_MSG_PREFIX + "Descriptor {0}".format(method.get_descriptor())
+        print OK_MSG_PREFIX + "Offset 0x{0:04x}".format(path.get_idx())
+
+        # get variable name
+        target_ins = get_instruction_by_idx(analyzed_method, path.get_idx())
+        intent_variable = get_instruction_variable(target_ins)[1]
+
+        print WARN_MSG_PREFIX + target_ins.get_name(), target_ins.get_output()
+        print WARN_MSG_PREFIX, get_instruction_variable(target_ins)
+
+        print WARN_MSG_PREFIX, intent_variable
+        result = backtrace_variable(analyzed_method, path.get_idx(), intent_variable, 0, [])
+#        print_backtrace_result(result, 0)
+#        print_backtrace_result(result)
+        json_result = get_intentclass_from_backtrace_result(result)
+
+        m = find_service_method(json_result, "broadcast")
+        if str(type(m)) == "<type 'instance'>":
+            if "{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor()) not in service_result.keys():
+                service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())] = []
+#            service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())].append({"idx" : path.get_idx(), "mx" : analyzed_method})
+            service_result["{} {} {}".format(m.get_class_name(), m.get_name(), m.get_descriptor())].append(path)
+
+        print WARN_MSG_PREFIX + "--------------------------------------------------"
+    return service_result
+
+def service_link():
     paths = dx.tainted_packages.search_methods("^Landroid/content/Context;$", "^startService$", "^\(Landroid/content/Intent;\)Landroid/content/ComponentName;$")
 
     service_result = {}
     for i in range(0, len(paths)):
         path = paths[i]
-        print OK_MSG_PREFIX + "link path {}".format(i)
+        print OK_MSG_PREFIX + "service link path {}".format(i)
         # get analyzed method
         analyzed_method = get_analyzed_method_from_path(path)
         method = analyzed_method.get_method()
@@ -686,8 +742,14 @@ def link():
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return service_result
 
-def get_target_methods():
-    paths = dx.tainted_packages.search_methods("^Landroid/content/ContentResolver;$", "^query$", "^\(Landroid/net/Uri; \[Ljava/lang/String; Ljava/lang/String; \[Ljava/lang/String; Ljava/lang/String;\)Landroid/database/Cursor;$")
+def get_target_methods(class_name = "^Landroid/content/ContentResolver;$", method_name = "^query$", descriptor = "^(Landroid/net/Uri; [Ljava/lang/String; Ljava/lang/String; [Ljava/lang/String; Ljava/lang/String;)Landroid/database/Cursor;$", level = 0):
+    if level >= 4:
+        return []
+    level += 1
+
+    descriptor = descriptor.replace('(', '\(').replace(')', '\)').replace('[', '\[').replace(']', '\]')
+    print 'dx.tainted_packages.search_methods("{}", "{}", "{}")'.format(class_name, method_name, descriptor)
+    paths = dx.tainted_packages.search_methods(class_name, method_name, descriptor)
 
     target_methods = []
     for i in range(0, len(paths)):
@@ -704,26 +766,32 @@ def get_target_methods():
 
         target_methods.append("{}->{}{}".format(method.get_class_name(), method.get_name(), method.get_descriptor()))
 
+        target_methods += get_target_methods("^{}$".format(method.get_class_name()), "^{}$".format(method.get_name()), "^{}$".format(method.get_descriptor()), level)
+
         print WARN_MSG_PREFIX + "--------------------------------------------------"
     return target_methods
 
-def check_target_in_result(target_methods, result):
+def check_target_in_result(target_methods, result, ins_stack = []):
     ins = result["ins"]
     if type(ins) == type('str'):
         pass
     elif type(ins) == type([]):
         for ins_dict in ins:
-            if check_target_in_result(target_methods, ins_dict) == 1:
+            if check_target_in_result(target_methods, ins_dict, ins_stack) == 1:
                 return 1
     elif isinstance(ins, Instruction):
+        ins_stack.append(ins)
         for method in target_methods:
             if method in ins.get_output():
                 print "Target Found:", method
+                for i in ins_stack:
+                    print "{} {}".format(i.get_name(), i.get_output())
                 return 1
         var_list = [ var for var in result.keys() if var != 'ins' ]
         for var in var_list:
-            if check_target_in_result(target_methods, result[var]) == 1:
+            if check_target_in_result(target_methods, result[var], ins_stack) == 1:
                 return 1
+        ins_stack = ins_stack[:-1]
     else:
         print "Parsing Error: " + str(ins)
     return 0
@@ -744,8 +812,14 @@ if __name__ == "__main__" :
 
     # construct intent / service link
     intent_service_link = None
-    intent_service_link = link()
+    broadcast_link = None
+    intent_service_link = service_link()
+    broadcast_link = broadcast_link()
     print intent_service_link
+    print broadcast_link
+
+    # combine
+    intent_service_link = dict(intent_service_link.items() + broadcast_link.items())
 
     # search ContentResolver.query()
     query_paths = dx.tainted_packages.search_methods("^Landroid/content/ContentResolver;$", "^query$", ".")
